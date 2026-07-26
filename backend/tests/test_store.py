@@ -18,6 +18,7 @@ XML_V1 = b"""<plecoflash formatversion="2"><cards>
     <headword charset="sc">&#22320;&#22270;</headword>
     <headword charset="tc">&#22320;&#22294;</headword>
     <pron type="hypy">di4tu2</pron>
+    <defn>a map used for finding places</defn>
   </entry><catassign category="Travel/Directions"/>
   <catassign category="Course/Week 1"/></card>
 </cards></plecoflash>"""
@@ -48,6 +49,10 @@ def test_import_session_assessment_and_reimport_preserve_plecoach_mastery() -> N
         session = await store.create_session(
             "learner-1", ["Travel/Directions"], target_count=2
         )
+        map_target = next(
+            card for card in session.target_cards if card.simplified == "地图"
+        )
+        assert map_target.definition == "a map used for finding places"
         assessed_card_id = next(
             card.card_id for card in session.target_cards if card.simplified == "迷路"
         )

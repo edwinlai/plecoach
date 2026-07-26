@@ -29,6 +29,7 @@ import {
   useState,
 } from "react";
 import { scopeCardsToSelection, summarizeMastery } from "./deck-scope";
+import { translateConversationTopic } from "./topic-translations";
 import { VoiceSession } from "./VoiceSession";
 
 const API_BASE =
@@ -42,6 +43,7 @@ export interface Card {
   simplified: string;
   traditional?: string;
   pinyin: string;
+  definition?: string;
   categories?: string[];
   mastery_state?: MasteryState;
   comprehension?: number;
@@ -109,6 +111,42 @@ function normalizeCategory(node: Record<string, unknown>): CategoryNode {
   };
 }
 
+function normalizeDefinitionValue(value: unknown): string | undefined {
+  if (typeof value === "string") {
+    const normalized = value.replace(/\s+/g, " ").trim();
+    return normalized ? normalized.slice(0, 2_000) : undefined;
+  }
+  if (Array.isArray(value)) {
+    const normalized = value
+      .map(normalizeDefinitionValue)
+      .filter((item): item is string => Boolean(item))
+      .join("；");
+    return normalized ? normalized.slice(0, 2_000) : undefined;
+  }
+  if (typeof value === "object" && value) {
+    const record = value as Record<string, unknown>;
+    return normalizeDefinitionValue(
+      record.text ?? record.definition ?? record.meaning ?? record.gloss,
+    );
+  }
+  return undefined;
+}
+
+function normalizeDefinition(raw: Record<string, unknown>): string | undefined {
+  for (const value of [
+    raw.definition,
+    raw.defn,
+    raw.definitions,
+    raw.meaning,
+    raw.gloss,
+    raw.english_definition,
+  ]) {
+    const normalized = normalizeDefinitionValue(value);
+    if (normalized) return normalized;
+  }
+  return undefined;
+}
+
 function normalizeCard(raw: Record<string, unknown>): Card {
   const nestedMastery =
     typeof raw.mastery === "object" && raw.mastery
@@ -129,6 +167,7 @@ function normalizeCard(raw: Record<string, unknown>): Card {
         ? String(raw.headword_traditional)
         : undefined,
     pinyin: String(raw.pinyin ?? raw.pronunciation ?? ""),
+    definition: normalizeDefinition(raw),
     categories: Array.isArray(raw.categories)
       ? raw.categories.map(String)
       : undefined,
@@ -290,10 +329,27 @@ function CategoryBranch({
 }
 
 function WordChip({ card, compact = false }: { card: Card; compact?: boolean }) {
+  const pinyin = card.pinyin || "Pinyin unavailable";
+  const detailLabel = card.definition
+    ? `Pinyin: ${pinyin}. Definition: ${card.definition}`
+    : `Pinyin: ${pinyin}. Definition unavailable`;
+
   return (
     <div className={`word-chip ${compact ? "is-compact" : ""}`}>
       <span className="word-hanzi">{card.simplified}</span>
-      <span className="word-pinyin">{card.pinyin}</span>
+      <span className="word-meta" aria-label={detailLabel}>
+        <span className="word-pinyin">{pinyin}</span>
+        {card.definition ? (
+          <>
+            <span className="word-meta-separator" aria-hidden="true">
+              ·
+            </span>
+            <span className="word-definition" title={card.definition}>
+              {card.definition}
+            </span>
+          </>
+        ) : null}
+      </span>
     </div>
   );
 }
@@ -502,7 +558,7 @@ function PlanDialog({
             <span>Conversation topic</span>
             <small>Choose one</small>
           </div>
-          <div className="topic-options">
+          <div className="topic-options" aria-label="Conversation topics">
             {plan.topic_suggestions.map((topic, index) => (
               <button
                 type="button"
@@ -511,10 +567,18 @@ function PlanDialog({
                   chosenTopic === topic ? "is-selected" : ""
                 }`}
                 onClick={() => onTopic(topic)}
+                aria-pressed={chosenTopic === topic}
               >
                 <span className="topic-number">{index + 1}</span>
-                <span>{topic}</span>
-                <span className="topic-radio">
+                <span className="topic-copy">
+                  <span className="topic-title" lang="zh-Hans">
+                    {topic}
+                  </span>
+                  <span className="topic-translation" lang="en">
+                    {translateConversationTopic(topic)}
+                  </span>
+                </span>
+                <span className="topic-radio" aria-hidden="true">
                   {chosenTopic === topic ? <Check size={13} /> : null}
                 </span>
               </button>

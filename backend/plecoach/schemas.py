@@ -89,6 +89,7 @@ class ParsedPlecoCard(BaseModel):
     simplified: str
     traditional: str
     pinyin: str
+    definition: str = Field(default="", max_length=2_000)
     categories: list[str]
     pleco: PlecoStats = Field(default_factory=PlecoStats)
     pleco_created_at: int | None = None
@@ -167,6 +168,7 @@ class TargetCard(BaseModel):
     traditional: str
     pinyin: str
     categories: list[str]
+    definition: str = Field(default="", max_length=2_000)
     pleco: PlecoStats = Field(default_factory=PlecoStats)
     mastery_state: MasteryState
     mastery: Mastery
@@ -179,6 +181,7 @@ class TargetCard(BaseModel):
             traditional=card.traditional,
             pinyin=card.pinyin,
             categories=card.categories,
+            definition=card.definition,
             pleco=card.pleco,
             mastery_state=card.mastery.state,
             mastery=card.mastery,

@@ -110,6 +110,8 @@ The agent also uses LiveKit's multilingual turn detector, interruption handling,
 
 The tutor receives a small target set and a deck-derived estimate of the learner's level. It is asked to surface words naturally rather than march through a quiz. This is more engaging and tests transferable knowledge, but it makes coverage less deterministic. The session can end naturally even if every target was not forced into the dialogue.
 
+The planning screen shows an English gloss for each Mandarin topic and the exported Pleco definition beside each target word. This makes session setup legible without weakening the immersion rule: once the learner joins, every tutor utterance and explanation remains in Mandarin.
+
 ### Preserve Pleco structure
 
 Category paths are preserved on import. Selecting a parent includes all descendants, and multiple selected branches form a deduplicated union. This respects the organization learners already invested in and lets a single deck drive very different conversations. It adds more import and selection logic than flattening every card into one list.
@@ -128,7 +130,8 @@ This is a single-learner demo with no account system. Pronunciation and tone sco
 
 ## Import behavior and privacy
 
-- The importer accepts Pleco v2 XML and reads simplified/traditional headwords, numbered pinyin, category assignments, and optional score metadata.
+- The importer accepts Pleco v2 XML and reads simplified/traditional headwords, numbered pinyin, exported `<defn>` text, category assignments, and optional score metadata.
+- Pleco only writes usable definition text when **Card definitions** is enabled for custom cards and **Dictionary definitions** is enabled for dictionary-linked cards on the export screen. Without those options, an export may contain only device-specific `<dictref>` references; Plecoach can still import the words, but it has less context for disambiguating meanings.
 - Category paths are derived from the slash-delimited Pleco assignment and retained as a tree.
 - XML is validated and bounded before persistence; malformed or empty decks return a useful error.
 - Re-importing merges cards by simplified headword plus pinyin, preserves Plecoach mastery, updates current Pleco metadata, and marks cards missing from the new file inactive instead of deleting them.

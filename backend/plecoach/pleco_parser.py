@@ -10,6 +10,7 @@ import xml.etree.ElementTree as ET
 from .schemas import ParsedPlecoCard, PlecoStats
 
 MAX_XML_BYTES = 10 * 1024 * 1024
+MAX_DEFINITION_CHARS = 2_000
 
 
 class PlecoParseError(ValueError):
@@ -30,6 +31,16 @@ def _first_child(element: ET.Element, name: str) -> ET.Element | None:
 
 def _clean_text(text: str | None) -> str:
     return unicodedata.normalize("NFC", (text or "").strip())
+
+
+def _definition_text(element: ET.Element | None) -> str:
+    """Flatten formatted Pleco definition content into bounded plain text."""
+
+    if element is None:
+        return ""
+    nested_text = " ".join(element.itertext())
+    normalized = unicodedata.normalize("NFC", nested_text)
+    return re.sub(r"\s+", " ", normalized).strip()[:MAX_DEFINITION_CHARS]
 
 
 def normalize_category_path(raw_path: str) -> str:
@@ -86,6 +97,7 @@ def _parse_card(card_element: ET.Element) -> ParsedPlecoCard | None:
     headwords: dict[str, str] = {}
     first_headword = ""
     pinyin = ""
+    definition = ""
     for child in entry:
         child_name = _local_name(child.tag)
         if child_name == "headword":
@@ -98,6 +110,8 @@ def _parse_card(card_element: ET.Element) -> ParsedPlecoCard | None:
             not pinyin or child.attrib.get("type", "").casefold() == "hypy"
         ):
             pinyin = _clean_text(child.text)
+        elif child_name == "defn" and not definition:
+            definition = _definition_text(child)
 
     simplified = headwords.get("sc") or first_headword or headwords.get("tc", "")
     traditional = headwords.get("tc") or simplified
@@ -117,6 +131,7 @@ def _parse_card(card_element: ET.Element) -> ParsedPlecoCard | None:
         simplified=simplified,
         traditional=traditional,
         pinyin=pinyin,
+        definition=definition,
         categories=categories,
         pleco=_parse_stats(_first_child(card_element, "scoreinfo")),
         pleco_created_at=_optional_int(card_element.attrib.get("created")),
@@ -168,9 +183,16 @@ def parse_pleco_xml(xml_bytes: bytes) -> list[ParsedPlecoCard]:
         categories = list(dict.fromkeys([*prior.categories, *parsed.categories]))
         prefer_new = (parsed.pleco_modified_at or 0) >= (prior.pleco_modified_at or 0)
         winner = parsed if prefer_new else prior
-        cards_by_id[parsed.card_id] = winner.model_copy(update={"categories": categories})
+        other = prior if prefer_new else parsed
+        cards_by_id[parsed.card_id] = winner.model_copy(
+            update={
+                "categories": categories,
+                # A newer duplicate can omit custom dictionary text. Preserve the
+                # older definition rather than silently discarding useful context.
+                "definition": winner.definition or other.definition,
+            }
+        )
 
     if not cards_by_id:
         raise PlecoParseError("No usable Chinese flashcards were found in the export.")
     return list(cards_by_id.values())
-

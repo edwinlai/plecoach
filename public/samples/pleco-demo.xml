@@ -13,7 +13,7 @@
         <headword charset="sc">讲义</headword>
         <headword charset="tc">講義</headword>
         <pron type="hypy" tones="numbers">jiang3yi4</pron>
-        <defn>lecture notes; handout</defn>
+        <defn>n. lecture notes; course handout | 老师把今天的讲义发给了我们。</defn>
       </entry>
       <catassign category="Plecoach Demo/校园生活/课堂"/>
       <scoreinfo scorefile="Default" score="12000" difficulty="96" history="66666" correct="5" incorrect="0" reviewed="5" sincelast="4" firstreviewedtime="1751414401" lastreviewedtime="1754006401"/>
@@ -23,7 +23,7 @@
         <headword charset="sc">预习</headword>
         <headword charset="tc">預習</headword>
         <pron type="hypy" tones="numbers">yu4xi2</pron>
-        <defn>to preview a lesson</defn>
+        <defn>v. to preview; prepare a lesson before class | 我晚上先预习明天的课。</defn>
       </entry>
       <catassign category="Plecoach Demo/校园生活/课堂"/>
       <scoreinfo scorefile="Default" score="7200" difficulty="102" history="56656" correct="5" incorrect="0" reviewed="5" sincelast="2" firstreviewedtime="1751414402" lastreviewedtime="1754006402"/>
@@ -33,7 +33,7 @@
         <headword charset="sc">复习</headword>
         <headword charset="tc">複習</headword>
         <pron type="hypy" tones="numbers">fu4xi2</pron>
-        <defn>to review; to revise</defn>
+        <defn>v. to review material already learned | 考试以前我要复习生词。</defn>
       </entry>
       <catassign category="Plecoach Demo/校园生活/课堂"/>
       <scoreinfo scorefile="Default" score="3800" difficulty="108" history="4565" correct="4" incorrect="0" reviewed="4" sincelast="1" firstreviewedtime="1751414403" lastreviewedtime="1754006403"/>
@@ -43,7 +43,7 @@
         <headword charset="sc">举手</headword>
         <headword charset="tc">舉手</headword>
         <pron type="hypy" tones="numbers">ju3shou3</pron>
-        <defn>to raise one's hand</defn>
+        <defn>v. to raise one's hand | 知道答案的话，请举手。</defn>
       </entry>
       <catassign category="Plecoach Demo/校园生活/课堂"/>
       <scoreinfo scorefile="Default" score="1400" difficulty="104" history="5362" correct="2" incorrect="2" reviewed="4" sincelast="0" firstreviewedtime="1751414404" lastreviewedtime="1754006404"/>
@@ -53,7 +53,7 @@
         <headword charset="sc">回答</headword>
         <headword charset="tc">回答</headword>
         <pron type="hypy" tones="numbers">hui2da2</pron>
-        <defn>to answer; an answer</defn>
+        <defn>v./n. to answer; reply; an answer | 请用完整的句子回答问题。</defn>
       </entry>
       <catassign category="Plecoach Demo/校园生活/课堂"/>
     </card>
@@ -62,7 +62,7 @@
         <headword charset="sc">作业</headword>
         <headword charset="tc">作業</headword>
         <pron type="hypy" tones="numbers">zuo4ye4</pron>
-        <defn>homework; assignment</defn>
+        <defn>n. homework; school assignment | 我吃完饭以后写作业。</defn>
       </entry>
       <catassign category="Plecoach Demo/校园生活/课堂"/>
       <catassign category="Plecoach Demo/重点复习/本周"/>
@@ -74,7 +74,7 @@
         <headword charset="sc">同学</headword>
         <headword charset="tc">同學</headword>
         <pron type="hypy" tones="numbers">tong2xue2</pron>
-        <defn>classmate</defn>
+        <defn>n. classmate; fellow student | 我跟同学一起练习中文。</defn>
       </entry>
       <catassign category="Plecoach Demo/校园生活/课后"/>
       <scoreinfo scorefile="Default" score="10500" difficulty="98" history="66656" correct="5" incorrect="0" reviewed="5" sincelast="4" firstreviewedtime="1751414407" lastreviewedtime="1754006407"/>
@@ -84,7 +84,7 @@
         <headword charset="sc">图书馆</headword>
         <headword charset="tc">圖書館</headword>
         <pron type="hypy" tones="numbers">tu2shu1guan3</pron>
-        <defn>library</defn>
+        <defn>n. library | 图书馆里很安静。</defn>
       </entry>
       <catassign category="Plecoach Demo/校园生活/课后"/>
       <scoreinfo scorefile="Default" score="6800" difficulty="100" history="6566" correct="4" incorrect="0" reviewed="4" sincelast="3" firstreviewedtime="1751414408" lastreviewedtime="1754006408"/>
@@ -94,7 +94,7 @@
         <headword charset="sc">借书</headword>
         <headword charset="tc">借書</headword>
         <pron type="hypy" tones="numbers">jie4shu1</pron>
-        <defn>to borrow a book</defn>
+        <defn>v. to borrow a book | 我想从图书馆借书。</defn>
       </entry>
       <catassign category="Plecoach Demo/校园生活/课后"/>
       <scoreinfo scorefile="Default" score="3200" difficulty="108" history="4654" correct="4" incorrect="0" reviewed="4" sincelast="1" firstreviewedtime="1751414409" lastreviewedtime="1754006409"/>
@@ -104,7 +104,7 @@
         <headword charset="sc">讨论</headword>
         <headword charset="tc">討論</headword>
         <pron type="hypy" tones="numbers">tao3lun4</pron>
-        <defn>to discuss; discussion</defn>
+        <defn>v./n. to discuss; discussion | 我们下课后讨论这个问题。</defn>
       </entry>
       <catassign category="Plecoach Demo/校园生活/课后"/>
       <catassign category="Plecoach Demo/重点复习/本周"/>
@@ -115,7 +115,7 @@
         <headword charset="sc">一起</headword>
         <headword charset="tc">一起</headword>
         <pron type="hypy" tones="numbers">yi1qi3</pron>
-        <defn>together</defn>
+        <defn>adv. together; in company | 周末我们一起去看电影吧。</defn>
       </entry>
       <catassign category="Plecoach Demo/校园生活/课后"/>
     </card>
@@ -124,7 +124,7 @@
         <headword charset="sc">进展</headword>
         <headword charset="tc">進展</headword>
         <pron type="hypy" tones="numbers">jin4zhan3</pron>
-        <defn>progress; to make progress</defn>
+        <defn>n./v. progress; to make progress | 这个项目进展得很顺利。</defn>
       </entry>
       <catassign category="Plecoach Demo/校园生活/课后"/>
       <scoreinfo scorefile="Default" score="500" difficulty="94" history="3232" correct="0" incorrect="4" reviewed="4" sincelast="0" firstreviewedtime="1751414412" lastreviewedtime="1754006412"/>
@@ -135,7 +135,7 @@
         <headword charset="sc">菜单</headword>
         <headword charset="tc">菜單</headword>
         <pron type="hypy" tones="numbers">cai4dan1</pron>
-        <defn>menu</defn>
+        <defn>n. menu | 服务员，请给我看一下菜单。</defn>
       </entry>
       <catassign category="Plecoach Demo/周末计划/餐厅"/>
       <scoreinfo scorefile="Default" score="11200" difficulty="96" history="66666" correct="5" incorrect="0" reviewed="5" sincelast="5" firstreviewedtime="1751414413" lastreviewedtime="1754006413"/>
@@ -145,7 +145,7 @@
         <headword charset="sc">点菜</headword>
         <headword charset="tc">點菜</headword>
         <pron type="hypy" tones="numbers">dian3cai4</pron>
-        <defn>to order dishes</defn>
+        <defn>v. to order dishes in a restaurant | 大家到了以后我们再点菜。</defn>
       </entry>
       <catassign category="Plecoach Demo/周末计划/餐厅"/>
       <scoreinfo scorefile="Default" score="6100" difficulty="100" history="5656" correct="4" incorrect="0" reviewed="4" sincelast="3" firstreviewedtime="1751414414" lastreviewedtime="1754006414"/>
@@ -155,7 +155,7 @@
         <headword charset="sc">推荐</headword>
         <headword charset="tc">推薦</headword>
         <pron type="hypy" tones="numbers">tui1jian4</pron>
-        <defn>to recommend; recommendation</defn>
+        <defn>v./n. to recommend; recommendation | 你能推荐一道不辣的菜吗？</defn>
       </entry>
       <catassign category="Plecoach Demo/周末计划/餐厅"/>
       <scoreinfo scorefile="Default" score="2800" difficulty="110" history="4564" correct="4" incorrect="0" reviewed="4" sincelast="1" firstreviewedtime="1751414415" lastreviewedtime="1754006415"/>
@@ -165,7 +165,7 @@
         <headword charset="sc">清淡</headword>
         <headword charset="tc">清淡</headword>
         <pron type="hypy" tones="numbers">qing1dan4</pron>
-        <defn>light; not greasy or strongly flavored</defn>
+        <defn>adj. light and mild in flavor; not greasy | 我今天想吃得清淡一点。</defn>
       </entry>
       <catassign category="Plecoach Demo/周末计划/餐厅"/>
       <catassign category="Plecoach Demo/重点复习/本周"/>
@@ -176,7 +176,7 @@
         <headword charset="sc">打包</headword>
         <headword charset="tc">打包</headword>
         <pron type="hypy" tones="numbers">da3bao1</pron>
-        <defn>to pack; to get food to go</defn>
+        <defn>v. to pack; to take leftover food to go | 这道菜没吃完，请帮我打包。</defn>
       </entry>
       <catassign category="Plecoach Demo/周末计划/餐厅"/>
     </card>
@@ -185,7 +185,7 @@
         <headword charset="sc">买单</headword>
         <headword charset="tc">買單</headword>
         <pron type="hypy" tones="numbers">mai3dan1</pron>
-        <defn>to pay the bill</defn>
+        <defn>v. to pay the bill; settle the check | 服务员，我们要买单。</defn>
       </entry>
       <catassign category="Plecoach Demo/周末计划/餐厅"/>
       <scoreinfo scorefile="Default" score="300" difficulty="90" history="2233" correct="0" incorrect="4" reviewed="4" sincelast="0" firstreviewedtime="1751414418" lastreviewedtime="1754006418"/>
@@ -196,7 +196,7 @@
         <headword charset="sc">散步</headword>
         <headword charset="tc">散步</headword>
         <pron type="hypy" tones="numbers">san4bu4</pron>
-        <defn>to take a walk</defn>
+        <defn>v. to take a walk; stroll | 晚饭后我常去公园散步。</defn>
       </entry>
       <catassign category="Plecoach Demo/周末计划/公园"/>
       <scoreinfo scorefile="Default" score="9800" difficulty="98" history="66665" correct="5" incorrect="0" reviewed="5" sincelast="4" firstreviewedtime="1751414419" lastreviewedtime="1754006419"/>
@@ -206,7 +206,7 @@
         <headword charset="sc">骑车</headword>
         <headword charset="tc">騎車</headword>
         <pron type="hypy" tones="numbers">qi2che1</pron>
-        <defn>to ride a bicycle</defn>
+        <defn>v. to ride a bicycle | 天气好的时候我骑车上班。</defn>
       </entry>
       <catassign category="Plecoach Demo/周末计划/公园"/>
       <scoreinfo scorefile="Default" score="5900" difficulty="102" history="6565" correct="4" incorrect="0" reviewed="4" sincelast="3" firstreviewedtime="1751414420" lastreviewedtime="1754006420"/>
@@ -216,7 +216,7 @@
         <headword charset="sc">风景</headword>
         <headword charset="tc">風景</headword>
         <pron type="hypy" tones="numbers">feng1jing3</pron>
-        <defn>scenery; landscape</defn>
+        <defn>n. scenery; landscape | 山上的风景很漂亮。</defn>
       </entry>
       <catassign category="Plecoach Demo/周末计划/公园"/>
       <scoreinfo scorefile="Default" score="3500" difficulty="106" history="4655" correct="4" incorrect="0" reviewed="4" sincelast="2" firstreviewedtime="1751414421" lastreviewedtime="1754006421"/>
@@ -226,7 +226,7 @@
         <headword charset="sc">晒太阳</headword>
         <headword charset="tc">曬太陽</headword>
         <pron type="hypy" tones="numbers">shai4tai4yang2</pron>
-        <defn>to bask in the sun</defn>
+        <defn>v. to bask in the sun; sit in sunlight | 冬天我喜欢在阳台上晒太阳。</defn>
       </entry>
       <catassign category="Plecoach Demo/周末计划/公园"/>
       <scoreinfo scorefile="Default" score="1100" difficulty="108" history="4632" correct="2" incorrect="2" reviewed="4" sincelast="0" firstreviewedtime="1751414422" lastreviewedtime="1754006422"/>
@@ -236,7 +236,7 @@
         <headword charset="sc">野餐</headword>
         <headword charset="tc">野餐</headword>
         <pron type="hypy" tones="numbers">ye3can1</pron>
-        <defn>picnic; to have a picnic</defn>
+        <defn>n./v. picnic; to have a picnic | 我们带些水果去公园野餐。</defn>
       </entry>
       <catassign category="Plecoach Demo/周末计划/公园"/>
     </card>
@@ -245,7 +245,7 @@
         <headword charset="sc">下雨</headword>
         <headword charset="tc">下雨</headword>
         <pron type="hypy" tones="numbers">xia4yu3</pron>
-        <defn>to rain</defn>
+        <defn>v. to rain; be rainy | 如果明天下雨，我们就不去公园了。</defn>
       </entry>
       <catassign category="Plecoach Demo/周末计划/公园"/>
       <catassign category="Plecoach Demo/重点复习/本周"/>

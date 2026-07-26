@@ -78,6 +78,7 @@ class TargetCard:
     simplified: str
     traditional: str = ""
     pinyin: str = ""
+    definition: str = ""
     category_paths: tuple[str, ...] = ()
     pleco_score: float | None = None
     pleco_correct: int | None = None
@@ -127,6 +128,10 @@ class TargetCard:
                 _first(raw, "traditional", "headword_traditional", default="")
             ),
             pinyin=_clean(_first(raw, "pinyin", "pronunciation", default="")),
+            definition=_clean(
+                _first(raw, "definition", "defn", default=""),
+                limit=2_000,
+            ),
             category_paths=category_paths,
             pleco_score=_optional_float(
                 _first(raw, "pleco_score", default=score_info.get("score"))
@@ -243,7 +248,8 @@ def build_tutor_instructions(context: TutorContext) -> str:
         (
             f"- 编号：{card.card_id}；简体：{card.simplified}"
             f"；繁体：{card.traditional or '同简体'}"
-            f"；拼音：{card.pinyin or '未提供'}；{_soft_signal(card)}"
+            f"；拼音：{card.pinyin or '未提供'}"
+            f"；词义参考：{card.definition or '未提供'}；{_soft_signal(card)}"
         )
         for card in context.target_cards
     )
@@ -264,6 +270,7 @@ def build_tutor_instructions(context: TutorContext) -> str:
 教学方式：
 - 当前范围是“{categories}”，当前话题是“{topic}”。
 - {level_hint}。优先使用目标词卡及难度相近的常用词，避免突然使用明显更难的表达。
+- 词义参考只用于确认目标词在这副词卡中的含义。它可能不是中文，绝不能直接念出、翻译或展示给学生；必须改用简单中文解释。
 - 每次自然带出一两个目标词，不要像背词表一样逐个提问，也不要透露你在测试哪些词。
 - 先让学生从上下文理解并自己表达。卡住时依次提供：更简单的问题、语境提示、简单中文解释、示例。
 - 给过提示或示例后，可以肯定进步，但不能把照着重复当作独立使用。

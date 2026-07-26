@@ -176,6 +176,10 @@ function LiveConversation({
                 card.mastery_state === "fluent" ||
                 (card.comprehension ?? 0) > 0.55 ||
                 (card.independent_usage ?? 0) > 0.55;
+              const pinyin = card.pinyin || "拼音未提供";
+              const detailLabel = card.definition
+                ? `拼音：${pinyin}。词义：${card.definition}`
+                : `拼音：${pinyin}。词义未提供`;
               return (
                 <article
                   key={card.card_id || card.simplified}
@@ -184,9 +188,27 @@ function LiveConversation({
                   <span className="session-word-state">
                     {active ? <Check size={13} strokeWidth={3} /> : null}
                   </span>
-                  <div>
+                  <div className="session-word-copy">
                     <strong>{card.simplified}</strong>
-                    <small>{card.pinyin}</small>
+                    <span className="session-word-meta" aria-label={detailLabel}>
+                      <span className="session-word-pinyin">{pinyin}</span>
+                      {card.definition ? (
+                        <>
+                          <span
+                            className="session-word-separator"
+                            aria-hidden="true"
+                          >
+                            ·
+                          </span>
+                          <span
+                            className="session-word-definition"
+                            title={card.definition}
+                          >
+                            {card.definition}
+                          </span>
+                        </>
+                      ) : null}
+                    </span>
                   </div>
                   <span className="evidence-label">
                     {active ? "已出现" : "待练习"}

@@ -22,6 +22,7 @@ def _card(**overrides):
         "simplified": "地图",
         "traditional": "地圖",
         "pinyin": "di4tu2",
+        "definition": "a map used for finding places",
         "categories": ["Archive/HSK 3.0/Level 2", "旅行/问路"],
         "pleco": {"score": 1200, "correct": 2, "incorrect": 3},
         "mastery": {"state": "unassessed"},
@@ -63,6 +64,7 @@ def test_target_card_preserves_pleco_as_soft_signal() -> None:
     assert card.pleco_score == 1200
     assert card.pleco_correct == 2
     assert card.pleco_incorrect == 3
+    assert card.definition == "a map used for finding places"
     assert card.mastery_summary == "unassessed"
 
 
@@ -85,6 +87,8 @@ def test_prompt_uses_mandarin_only_policy_and_reassessment_rule() -> None:
     assert "地图" in prompt
     assert "迷路" in prompt
     assert "第一次去北京" in prompt
+    assert "词义参考：a map used for finding places" in prompt
+    assert "绝不能直接念出、翻译或展示给学生" in prompt
 
 
 def test_imported_fields_are_flattened_in_prompt() -> None:
