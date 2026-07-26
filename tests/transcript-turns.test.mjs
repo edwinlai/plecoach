@@ -3,7 +3,6 @@ import test from "node:test";
 
 import {
   groupTranscriptTurns,
-  MAX_TURN_SEGMENT_GAP_MS,
   mergeTranscriptText,
 } from "../app/transcript-turns.ts";
 
@@ -102,27 +101,33 @@ test("turn keys stay stable while live text grows", () => {
   assert.equal(final[0].id, partial[0].id);
 });
 
-test("a long gap starts a new turn even when the speaker is unchanged", () => {
+test("a learner pause does not split the turn before the tutor answers", () => {
   const turns = groupTranscriptTurns([
-    fragment("learner", "第一句话", "one", { timestamp: 1_000 }),
-    fragment("learner", "第二句话", "two", {
-      timestamp: 1_000 + MAX_TURN_SEGMENT_GAP_MS + 1,
+    fragment("learner", "你好", "one", { timestamp: 1_000 }),
+    fragment("learner", "我的", "two", { timestamp: 20_000 }),
+    fragment("learner", "是你的意思是什么？", "three", {
+      timestamp: 40_000,
+    }),
+    fragment("tutor", "没关系，我们重新来。", "four", {
+      timestamp: 41_000,
     }),
   ]);
 
   assert.equal(turns.length, 2);
+  assert.equal(turns[0].text, "你好我的是你的意思是什么？");
 });
 
-test("a microphone track change starts a new turn", () => {
+test("track metadata changes do not split one uninterrupted speaker run", () => {
   const turns = groupTranscriptTurns([
     fragment("learner", "断线以前", "one", { trackId: "old-track" }),
     fragment("learner", "重新连接", "two", { trackId: "new-track" }),
   ]);
 
-  assert.equal(turns.length, 2);
+  assert.equal(turns.length, 1);
+  assert.equal(turns[0].text, "断线以前重新连接");
 });
 
-test("missing timing or track metadata does not merge uncertain segments", () => {
+test("missing timing or track metadata still groups by speaker", () => {
   const turns = groupTranscriptTurns([
     {
       text: "第一句",
@@ -136,7 +141,8 @@ test("missing timing or track metadata does not merge uncertain segments", () =>
     },
   ]);
 
-  assert.equal(turns.length, 2);
+  assert.equal(turns.length, 1);
+  assert.equal(turns[0].text, "第一句第二句");
 });
 
 test("Latin fragments receive a readable space while Mandarin does not", () => {

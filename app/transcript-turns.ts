@@ -1,6 +1,5 @@
 interface TranscriptStreamInfo {
   id?: string;
-  timestamp?: number;
   attributes?: Record<string, string>;
 }
 
@@ -17,13 +16,9 @@ export interface TranscriptTurn {
   participantIdentity: string;
   text: string;
   segmentIds: string[];
-  transcribedTrackId: string;
-  lastTimestamp: number;
 }
 
 const SEGMENT_ID_ATTRIBUTE = "lk.segment_id";
-const TRANSCRIBED_TRACK_ID_ATTRIBUTE = "lk.transcribed_track_id";
-export const MAX_TURN_SEGMENT_GAP_MS = 8_000;
 
 function segmentId(
   fragment: TranscriptFragment,
@@ -88,33 +83,10 @@ export function mergeTranscriptText(current: string, next: string): string {
   return `${left}${boundarySeparator(left, right)}${right}`;
 }
 
-function validTimestamp(value: number | undefined): value is number {
-  return typeof value === "number" && Number.isFinite(value) && value > 0;
-}
-
-function canExtendTurn(
-  turn: TranscriptTurn,
-  fragment: TranscriptFragment,
-): boolean {
-  const timestamp = fragment.streamInfo?.timestamp;
-  const trackId =
-    fragment.streamInfo?.attributes?.[TRANSCRIBED_TRACK_ID_ATTRIBUTE] ?? "";
-
-  return (
-    turn.participantIdentity === fragment.participantInfo.identity &&
-    Boolean(trackId) &&
-    trackId === turn.transcribedTrackId &&
-    validTimestamp(timestamp) &&
-    validTimestamp(turn.lastTimestamp) &&
-    timestamp >= turn.lastTimestamp &&
-    timestamp - turn.lastTimestamp <= MAX_TURN_SEGMENT_GAP_MS
-  );
-}
-
 /**
  * Present transcription segments as conversational turns. A speaker change is
- * always a boundary. Nearby segments from the same microphone stay in one row,
- * while long gaps, track changes, and reconnects begin a new row.
+ * the boundary, so the learner can pause and formulate Mandarin without every
+ * finalized STT segment becoming a separate row.
  */
 export function groupTranscriptTurns(
   fragments: readonly TranscriptFragment[],
@@ -127,22 +99,17 @@ export function groupTranscriptTurns(
     if (!text || !participantIdentity) continue;
 
     const previous = turns.at(-1);
-    if (previous && canExtendTurn(previous, fragment)) {
+    if (previous?.participantIdentity === participantIdentity) {
       previous.text = mergeTranscriptText(previous.text, text);
       previous.segmentIds.push(fragment.segmentId);
-      previous.lastTimestamp = fragment.streamInfo?.timestamp ?? 0;
       continue;
     }
 
-    const transcribedTrackId =
-      fragment.streamInfo?.attributes?.[TRANSCRIBED_TRACK_ID_ATTRIBUTE] ?? "";
     turns.push({
       id: `${participantIdentity}:${fragment.segmentId}`,
       participantIdentity,
       text,
       segmentIds: [fragment.segmentId],
-      transcribedTrackId,
-      lastTimestamp: fragment.streamInfo?.timestamp ?? 0,
     });
   }
 
