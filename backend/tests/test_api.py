@@ -16,7 +16,10 @@ XML = b"""<plecoflash formatversion="2"><cards>
 
 
 def test_full_setup_contract(monkeypatch) -> None:
-    monkeypatch.setenv("LIVEKIT_URL", "wss://example.livekit.cloud")
+    monkeypatch.setenv("LIVEKIT_URL", "wss://plecoach-test.livekit.cloud")
+    monkeypatch.setenv("LIVEKIT_API_KEY", "APIplecoachtest")
+    monkeypatch.setenv("LIVEKIT_API_SECRET", "s" * 32)
+    monkeypatch.setenv("LIVEKIT_AGENT_NAME", "plecoach-tutor")
     monkeypatch.setattr(api, "_connection_token", lambda **_: "signed-token")
     application = api.create_app(MemoryStore())
 
@@ -56,7 +59,60 @@ def test_full_setup_contract(monkeypatch) -> None:
         assert connection.status_code == 200
         assert connection.json()["token"] == "signed-token"
         assert connection.json()["participant_token"] == "signed-token"
+        first_identity = connection.json()["participant_identity"]
+
+        reconnected = client.post(
+            f"/api/sessions/{session_id}/connection",
+            json={"topic": "在餐厅点菜"},
+        )
+        assert reconnected.status_code == 200
+        assert reconnected.json()["participant_identity"] != first_identity
 
         saved = client.get(f"/api/sessions/{session_id}")
         assert saved.json()["topic"] == "在餐厅点菜"
 
+
+def test_placeholder_livekit_config_is_unhealthy_and_cannot_connect(
+    monkeypatch,
+) -> None:
+    monkeypatch.setenv("LIVEKIT_URL", "wss://example.livekit.cloud")
+    monkeypatch.setenv("LIVEKIT_API_KEY", "apikey")
+    monkeypatch.setenv("LIVEKIT_API_SECRET", "apisecret")
+    application = api.create_app(MemoryStore())
+
+    with TestClient(application) as client:
+        health = client.get("/api/health")
+        assert health.status_code == 503
+        assert health.json() == {
+            "status": "degraded",
+            "redis": "ok",
+            "livekit_configured": False,
+        }
+
+        imported = client.post(
+            "/api/decks/import",
+            data={"learner_id": "browser-user"},
+            files={"file": ("sample.xml", XML, "application/xml")},
+        )
+        assert imported.status_code == 200
+        planned = client.post(
+            "/api/sessions",
+            json={
+                "learner_id": "browser-user",
+                "category_paths": ["Food"],
+                "target_count": 6,
+            },
+        )
+        session_id = planned.json()["session_id"]
+
+        connection = client.post(
+            f"/api/sessions/{session_id}/connection",
+            json={"topic": "在餐厅点菜"},
+        )
+        assert connection.status_code == 503
+        detail = connection.json()["detail"]
+        assert "LIVEKIT_URL" in detail
+        assert "LIVEKIT_API_KEY" in detail
+        assert "LIVEKIT_API_SECRET" in detail
+        assert "wss://example.livekit.cloud" not in detail
+        assert "apisecret" not in detail

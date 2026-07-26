@@ -27,6 +27,11 @@ from livekit.agents import (
 )
 from livekit.agents.llm import ChatMessage, ToolError
 
+from .config import (
+    LiveKitConfigurationError,
+    livekit_agent_name,
+    load_livekit_config,
+)
 from .store import RedisStore
 from .tutor import (
     Assistance,
@@ -261,7 +266,7 @@ def _attach_transcript_persistence(
 server = AgentServer()
 
 
-@server.rtc_session(agent_name=os.getenv("LIVEKIT_AGENT_NAME", "plecoach-tutor"))
+@server.rtc_session(agent_name=livekit_agent_name())
 async def plecoach_session(ctx: JobContext) -> None:
     """Load Redis session context and start the managed LiveKit voice pipeline."""
 
@@ -344,4 +349,8 @@ async def plecoach_session(ctx: JobContext) -> None:
 
 
 if __name__ == "__main__":
+    try:
+        load_livekit_config()
+    except LiveKitConfigurationError as exc:
+        raise SystemExit(f"LiveKit configuration error: {exc}") from exc
     agents.cli.run_app(server)

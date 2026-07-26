@@ -22,6 +22,12 @@ from fastapi import (
 )
 from fastapi.middleware.cors import CORSMiddleware
 
+from .config import (
+    LiveKitConfig,
+    LiveKitConfigurationError,
+    livekit_configuration_errors,
+    load_livekit_config,
+)
 from .pleco_parser import MAX_XML_BYTES, PlecoParseError, parse_pleco_xml
 from .schemas import (
     ConnectionDetails,
@@ -64,16 +70,11 @@ def _connection_token(
     participant_identity: str,
     participant_name: str,
     metadata: str,
+    configuration: LiveKitConfig | None = None,
 ) -> str:
     """Create a participant JWT that explicitly dispatches the named agent."""
 
-    livekit_api_key = os.getenv("LIVEKIT_API_KEY")
-    livekit_api_secret = os.getenv("LIVEKIT_API_SECRET")
-    if not livekit_api_key or not livekit_api_secret:
-        raise HTTPException(
-            status_code=503,
-            detail="LiveKit credentials are not configured on the server.",
-        )
+    config = configuration or _require_livekit_configuration()
 
     try:
         from livekit import api
@@ -82,9 +83,8 @@ def _connection_token(
             status_code=503, detail="The LiveKit server SDK is unavailable."
         ) from exc
 
-    agent_name = os.getenv("LIVEKIT_AGENT_NAME", "plecoach-tutor")
     return (
-        api.AccessToken(livekit_api_key, livekit_api_secret)
+        api.AccessToken(config.api_key, config.api_secret)
         .with_identity(participant_identity)
         .with_name(participant_name)
         .with_grants(
@@ -99,13 +99,26 @@ def _connection_token(
         .with_room_config(
             api.RoomConfiguration(
                 agents=[
-                    api.RoomAgentDispatch(agent_name=agent_name, metadata=metadata)
+                    api.RoomAgentDispatch(
+                        agent_name=config.agent_name,
+                        metadata=metadata,
+                    )
                 ]
             )
         )
         .with_ttl(timedelta(hours=2))
         .to_jwt()
     )
+
+
+def _require_livekit_configuration() -> LiveKitConfig:
+    try:
+        return load_livekit_config()
+    except LiveKitConfigurationError as exc:
+        raise HTTPException(
+            status_code=503,
+            detail=f"LiveKit configuration is invalid: {exc}",
+        ) from exc
 
 
 def create_app(store: Store | None = None) -> FastAPI:
@@ -144,14 +157,11 @@ def create_app(store: Store | None = None) -> FastAPI:
             redis_ok = await state.ping()
         except Exception:
             redis_ok = False
-        if not redis_ok:
+        livekit_configured = not livekit_configuration_errors()
+        if not redis_ok or not livekit_configured:
             response.status_code = 503
-        livekit_configured = all(
-            os.getenv(name)
-            for name in ("LIVEKIT_URL", "LIVEKIT_API_KEY", "LIVEKIT_API_SECRET")
-        )
         return HealthResponse(
-            status="ok" if redis_ok else "degraded",
+            status="ok" if redis_ok and livekit_configured else "degraded",
             redis="ok" if redis_ok else "unavailable",
             livekit_configured=livekit_configured,
         )
@@ -218,6 +228,7 @@ def create_app(store: Store | None = None) -> FastAPI:
     async def issue_connection(
         session_id: str, request: ConnectionRequest, state: Store
     ) -> ConnectionDetails:
+        config = _require_livekit_configuration()
         try:
             session = await state.get_session(session_id)
             if request.topic is not None:
@@ -225,11 +236,6 @@ def create_app(store: Store | None = None) -> FastAPI:
         except SessionNotFoundError as exc:
             raise HTTPException(status_code=404, detail=str(exc)) from exc
 
-        server_url = os.getenv("LIVEKIT_URL")
-        if not server_url:
-            raise HTTPException(
-                status_code=503, detail="LIVEKIT_URL is not configured on the server."
-            )
         suffix = uuid.uuid4().hex[:8]
         participant_identity = request.participant_identity or (
             f"{session.learner_id[:60]}-{suffix}"
@@ -245,9 +251,10 @@ def create_app(store: Store | None = None) -> FastAPI:
             participant_identity=participant_identity,
             participant_name=participant_name,
             metadata=metadata,
+            configuration=config,
         )
         return ConnectionDetails(
-            server_url=server_url,
+            server_url=config.url,
             token=token,
             participant_token=token,
             room_name=session.room_name,

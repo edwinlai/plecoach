@@ -19,8 +19,10 @@ import {
   Sparkles,
   Target,
 } from "lucide-react";
+import type { DisconnectReason } from "livekit-client";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Card } from "./PlecoachApp";
+import { resolveRoomDisconnection } from "./voice-session-lifecycle";
 
 interface ConnectionDetails {
   server_url: string;
@@ -308,39 +310,131 @@ export function VoiceSession({
   plan,
   topic,
   apiBase,
+  onReconnect,
   onLeave,
 }: {
   connection: ConnectionDetails;
   plan: SessionPlan;
   topic: string;
   apiBase: string;
+  onReconnect: () => Promise<void>;
   onLeave: () => void;
 }) {
   const [roomError, setRoomError] = useState<string | null>(null);
+  const [roomAttempt, setRoomAttempt] = useState(0);
+  const [retrying, setRetrying] = useState(false);
+  const connectedRef = useRef(false);
+  const leaveRequestedRef = useRef(false);
+  const leaveCommittedRef = useRef(false);
+  const lastErrorRef = useRef<string | null>(null);
+
+  const commitLeave = useCallback(() => {
+    if (leaveCommittedRef.current) return;
+    leaveCommittedRef.current = true;
+    onLeave();
+  }, [onLeave]);
+
+  const requestLeave = useCallback(() => {
+    leaveRequestedRef.current = true;
+    commitLeave();
+  }, [commitLeave]);
+
+  const retryConnection = useCallback(async () => {
+    setRetrying(true);
+    try {
+      await onReconnect();
+      connectedRef.current = false;
+      leaveRequestedRef.current = false;
+      leaveCommittedRef.current = false;
+      lastErrorRef.current = null;
+      setRoomError(null);
+      setRoomAttempt((attempt) => attempt + 1);
+    } catch (error) {
+      const message =
+        error instanceof Error && error.message.trim()
+          ? error.message
+          : "Plecoach couldn’t request a fresh voice-room connection.";
+      lastErrorRef.current = message;
+      setRoomError(message);
+    } finally {
+      setRetrying(false);
+    }
+  }, [onReconnect]);
+
+  const handleConnected = useCallback(() => {
+    connectedRef.current = true;
+    lastErrorRef.current = null;
+    setRoomError(null);
+  }, []);
+
+  const handleError = useCallback((error: Error) => {
+    const message =
+      error.message.trim() ||
+      "Plecoach encountered an error while opening the voice room.";
+    lastErrorRef.current = message;
+    setRoomError(message);
+  }, []);
+
+  const handleDisconnected = useCallback(
+    (reason?: DisconnectReason) => {
+      const disposition = resolveRoomDisconnection({
+        userRequested: leaveRequestedRef.current,
+        wasConnected: connectedRef.current,
+        reason,
+        priorError: lastErrorRef.current,
+      });
+      if (disposition.shouldExit) {
+        commitLeave();
+        return;
+      }
+      lastErrorRef.current = disposition.error;
+      setRoomError(disposition.error);
+    },
+    [commitLeave],
+  );
+
   return (
     <LiveKitRoom
+      key={`${connection.session_id}-${roomAttempt}`}
       token={connection.token}
       serverUrl={connection.server_url}
       connect
       audio
       video={false}
-      onDisconnected={onLeave}
-      onError={(error) => setRoomError(error.message)}
+      onConnected={handleConnected}
+      onDisconnected={handleDisconnected}
+      onError={handleError}
       data-lk-theme="default"
       className="livekit-root"
     >
       {roomError ? (
-        <div className="room-error" role="alert">
+        <div
+          className="room-error"
+          role="alert"
+          aria-live="assertive"
+          aria-atomic="true"
+        >
           <CircleAlert size={18} />
           <span>{roomError}</span>
-          <DisconnectButton onClick={onLeave}>Return to deck</DisconnectButton>
+          <span className="room-error-actions">
+            <button
+              type="button"
+              onClick={() => void retryConnection()}
+              disabled={retrying}
+            >
+              {retrying ? "Reconnecting…" : "Try again"}
+            </button>
+            <button type="button" onClick={requestLeave} disabled={retrying}>
+              Return to deck
+            </button>
+          </span>
         </div>
       ) : null}
       <LiveConversation
         plan={plan}
         topic={topic}
         apiBase={apiBase}
-        onLeave={onLeave}
+        onLeave={requestLeave}
       />
     </LiveKitRoom>
   );

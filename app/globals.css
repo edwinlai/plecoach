@@ -1630,6 +1630,18 @@ input:focus-visible {
   font-size: 11px;
 }
 
+.room-error > span:nth-child(2) {
+  min-width: 0;
+  line-height: 1.4;
+}
+
+.room-error-actions {
+  display: inline-flex;
+  flex: 0 0 auto;
+  gap: 8px;
+  align-items: center;
+}
+
 .room-error button {
   border: 0;
   background: transparent;
@@ -1637,6 +1649,23 @@ input:focus-visible {
   font-weight: 700;
   text-decoration: underline;
   cursor: pointer;
+}
+
+.room-error button:disabled {
+  cursor: wait;
+  opacity: 0.55;
+}
+
+@media (max-width: 640px) {
+  .room-error {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .room-error-actions {
+    width: 100%;
+    padding-left: 28px;
+  }
 }
 
 .loading-screen {

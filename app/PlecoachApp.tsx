@@ -992,30 +992,36 @@ export function PlecoachApp() {
     }
   };
 
+  const requestSessionConnection = async (
+    sessionPlan: SessionPlan,
+    topic: string,
+  ): Promise<ConnectionDetails> => {
+    const response = await fetch(
+      `${API_BASE}/api/sessions/${encodeURIComponent(sessionPlan.session_id)}/connection`,
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          participant_name: "Learner",
+          topic,
+        }),
+      },
+    );
+    const payload = await readJson(response);
+    return {
+      server_url: String(payload.server_url ?? payload.url ?? ""),
+      token: String(payload.token ?? payload.participant_token ?? ""),
+      room_name: String(payload.room_name ?? ""),
+      session_id: String(payload.session_id ?? sessionPlan.session_id),
+    };
+  };
+
   const startSession = async () => {
     if (!plan) return;
     setConnecting(true);
     setError(null);
     try {
-      const response = await fetch(
-        `${API_BASE}/api/sessions/${encodeURIComponent(plan.session_id)}/connection`,
-        {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({
-            participant_identity: learnerId,
-            participant_name: "Learner",
-            topic: chosenTopic,
-          }),
-        },
-      );
-      const payload = await readJson(response);
-      setConnection({
-        server_url: String(payload.server_url ?? payload.url ?? ""),
-        token: String(payload.token ?? payload.participant_token ?? ""),
-        room_name: String(payload.room_name ?? ""),
-        session_id: String(payload.session_id ?? plan.session_id),
-      });
+      setConnection(await requestSessionConnection(plan, chosenTopic));
     } catch (requestError) {
       setError(
         requestError instanceof Error
@@ -1044,6 +1050,9 @@ export function PlecoachApp() {
         plan={plan}
         topic={chosenTopic}
         apiBase={API_BASE}
+        onReconnect={async () => {
+          setConnection(await requestSessionConnection(plan, chosenTopic));
+        }}
         onLeave={() => {
           setConnection(null);
           setPlan(null);
