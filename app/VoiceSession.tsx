@@ -47,6 +47,33 @@ const statusCopy: Record<string, { zh: string; en: string }> = {
   speaking: { zh: "轮到我说", en: "Speaking" },
 };
 
+function TranscriptPinyin({ text }: { text: string }) {
+  const [result, setResult] = useState({ text: "", value: "" });
+
+  useEffect(() => {
+    let cancelled = false;
+    void import("./transcript-pinyin")
+      .then(({ toTranscriptPinyin }) => {
+        if (!cancelled) {
+          setResult({ text, value: toTranscriptPinyin(text) });
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setResult({ text, value: "" });
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [text]);
+
+  const value = result.text === text ? result.value : "";
+  return value ? (
+    <p className="transcript-pinyin" lang="zh-Latn-pinyin" aria-hidden="true">
+      {value}
+    </p>
+  ) : null;
+}
+
 function LiveConversation({
   plan,
   topic,
@@ -65,8 +92,15 @@ function LiveConversation({
     [transcriptions],
   );
   const [cards, setCards] = useState(plan.target_cards);
-  const transcriptEnd = useRef<HTMLDivElement>(null);
+  const transcriptList = useRef<HTMLDivElement>(null);
+  const followTranscript = useRef(true);
   const status = statusCopy[state] ?? statusCopy.connecting;
+  const liveLabel =
+    state === "disconnected"
+      ? "Offline"
+      : state === "connecting" || state === "initializing"
+        ? "Connecting"
+        : "Live";
   const handleAssessment = useCallback((message: { payload: Uint8Array }) => {
     try {
       const payload = JSON.parse(new TextDecoder().decode(message.payload)) as {
@@ -98,8 +132,33 @@ function LiveConversation({
   useDataChannel("plecoach.card-assessment", handleAssessment);
 
   useEffect(() => {
-    transcriptEnd.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+    if (!followTranscript.current) return;
+    const element = transcriptList.current;
+    if (element) element.scrollTop = element.scrollHeight;
   }, [transcriptTurns]);
+
+  useEffect(() => {
+    const element = transcriptList.current;
+    if (!element) return;
+    const observer = new MutationObserver(() => {
+      if (followTranscript.current) {
+        element.scrollTop = element.scrollHeight;
+      }
+    });
+    observer.observe(element, {
+      childList: true,
+      characterData: true,
+      subtree: true,
+    });
+    return () => observer.disconnect();
+  }, []);
+
+  const handleTranscriptScroll = useCallback(() => {
+    const element = transcriptList.current;
+    if (!element) return;
+    followTranscript.current =
+      element.scrollHeight - element.scrollTop - element.clientHeight < 80;
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -159,6 +218,83 @@ function LiveConversation({
       </header>
 
       <div className="voice-grid">
+        <main className="transcript-panel">
+          <div className="session-panel-heading">
+            <div>
+              <p className="eyebrow">Live transcript</p>
+              <h1>对话记录</h1>
+            </div>
+            <span className="transcript-live">
+              <span className="live-dot" aria-hidden="true" /> {liveLabel}
+            </span>
+          </div>
+          <div
+            className="transcript-list"
+            role="log"
+            aria-live="polite"
+            aria-relevant="additions text"
+            ref={transcriptList}
+            onScroll={handleTranscriptScroll}
+          >
+            {transcriptTurns.length ? (
+              transcriptTurns.map((turn) => {
+                const isTutor = turn.participantIdentity === agent?.identity;
+                return (
+                  <article
+                    key={turn.id}
+                    className={isTutor ? "tutor-line" : "learner-line"}
+                  >
+                    <span aria-hidden="true">{isTutor ? "陪" : "你"}</span>
+                    <div>
+                      <small>{isTutor ? "陪练老师" : "你"}</small>
+                      <p className="transcript-hanzi" lang="zh-CN">
+                        {turn.text}
+                      </p>
+                      <TranscriptPinyin text={turn.text} />
+                    </div>
+                  </article>
+                );
+              })
+            ) : (
+              <div className="empty-transcript">
+                <MessageCircle size={22} />
+                <p>对话开始后，文字会出现在这里。</p>
+              </div>
+            )}
+          </div>
+          <div className="voice-dock">
+            <div className="voice-status">
+              <span className="status-pulse" />
+              <span>
+                <strong>{status.zh}</strong>
+                <small>{status.en}</small>
+              </span>
+            </div>
+            <div className="voice-signal">
+              <BarVisualizer
+                className="voice-visualizer"
+                state={state}
+                trackRef={audioTrack}
+                barCount={7}
+                options={{ minHeight: 8, maxHeight: 48 }}
+              />
+              {!agent && state !== "disconnected" ? (
+                <p className="joining-note">
+                  正在邀请你的陪练老师加入房间…
+                </p>
+              ) : (
+                <p className="mic-note">
+                  <Mic2 size={14} /> 可以随时打断老师，就像真实的对话一样
+                </p>
+              )}
+            </div>
+            <VoiceAssistantControlBar
+              className="voice-controls"
+              controls={{ microphone: true, leave: false }}
+            />
+          </div>
+        </main>
+
         <aside className="session-words">
           <div className="session-panel-heading">
             <div>
@@ -229,73 +365,6 @@ function LiveConversation({
             <p>
               不用刻意说出每个词。自然地回答老师的问题就好。
             </p>
-          </div>
-        </aside>
-
-        <main className="voice-stage">
-          <div className={`tutor-orb state-${state}`}>
-            <span className="orb-character">陪</span>
-            <div className="orb-ring ring-one" />
-            <div className="orb-ring ring-two" />
-          </div>
-          <div className="voice-status">
-            <span className="status-pulse" />
-            <strong>{status.zh}</strong>
-            <small>{status.en}</small>
-          </div>
-          <BarVisualizer
-            className="voice-visualizer"
-            state={state}
-            trackRef={audioTrack}
-            barCount={7}
-            options={{ minHeight: 12, maxHeight: 84 }}
-          />
-          {!agent && state !== "disconnected" ? (
-            <p className="joining-note">正在邀请你的陪练老师加入房间…</p>
-          ) : null}
-          <VoiceAssistantControlBar
-            className="voice-controls"
-            controls={{ microphone: true, leave: false }}
-          />
-          <p className="mic-note">
-            <Mic2 size={14} /> 可以随时打断老师，就像真实的对话一样
-          </p>
-        </main>
-
-        <aside className="transcript-panel">
-          <div className="session-panel-heading">
-            <div>
-              <p className="eyebrow">Live transcript</p>
-              <h2>对话记录</h2>
-            </div>
-            <span className="transcript-live">
-              <span className="live-dot" /> Live
-            </span>
-          </div>
-          <div className="transcript-list" aria-live="polite">
-            {transcriptTurns.length ? (
-              transcriptTurns.map((turn) => {
-                const isTutor = turn.participantIdentity === agent?.identity;
-                return (
-                  <article
-                    key={turn.id}
-                    className={isTutor ? "tutor-line" : "learner-line"}
-                  >
-                    <span>{isTutor ? "陪" : "你"}</span>
-                    <div>
-                      <small>{isTutor ? "陪练老师" : "你"}</small>
-                      <p>{turn.text}</p>
-                    </div>
-                  </article>
-                );
-              })
-            ) : (
-              <div className="empty-transcript">
-                <MessageCircle size={22} />
-                <p>对话开始后，文字会出现在这里。</p>
-              </div>
-            )}
-            <div ref={transcriptEnd} />
           </div>
           <div className="assessment-note">
             <Target size={16} />
