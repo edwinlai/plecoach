@@ -1,0 +1,255 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<plecoflash formatversion="2" creator="Plecoach Demo" generator="Plecoach Synthetic Fixture" platform="Web" created="1751328000">
+  <categories>
+    <category name="Plecoach Demo/校园生活/课堂"/>
+    <category name="Plecoach Demo/校园生活/课后"/>
+    <category name="Plecoach Demo/周末计划/餐厅"/>
+    <category name="Plecoach Demo/周末计划/公园"/>
+    <category name="Plecoach Demo/重点复习/本周"/>
+  </categories>
+  <cards>
+    <card language="chinese" created="1751328001" modified="1754006401">
+      <entry>
+        <headword charset="sc">讲义</headword>
+        <headword charset="tc">講義</headword>
+        <pron type="hypy" tones="numbers">jiang3yi4</pron>
+        <defn>lecture notes; handout</defn>
+      </entry>
+      <catassign category="Plecoach Demo/校园生活/课堂"/>
+      <scoreinfo scorefile="Default" score="12000" difficulty="96" history="66666" correct="5" incorrect="0" reviewed="5" sincelast="4" firstreviewedtime="1751414401" lastreviewedtime="1754006401"/>
+    </card>
+    <card language="chinese" created="1751328002" modified="1754006402">
+      <entry>
+        <headword charset="sc">预习</headword>
+        <headword charset="tc">預習</headword>
+        <pron type="hypy" tones="numbers">yu4xi2</pron>
+        <defn>to preview a lesson</defn>
+      </entry>
+      <catassign category="Plecoach Demo/校园生活/课堂"/>
+      <scoreinfo scorefile="Default" score="7200" difficulty="102" history="56656" correct="5" incorrect="0" reviewed="5" sincelast="2" firstreviewedtime="1751414402" lastreviewedtime="1754006402"/>
+    </card>
+    <card language="chinese" created="1751328003" modified="1754006403">
+      <entry>
+        <headword charset="sc">复习</headword>
+        <headword charset="tc">複習</headword>
+        <pron type="hypy" tones="numbers">fu4xi2</pron>
+        <defn>to review; to revise</defn>
+      </entry>
+      <catassign category="Plecoach Demo/校园生活/课堂"/>
+      <scoreinfo scorefile="Default" score="3800" difficulty="108" history="4565" correct="4" incorrect="0" reviewed="4" sincelast="1" firstreviewedtime="1751414403" lastreviewedtime="1754006403"/>
+    </card>
+    <card language="chinese" created="1751328004" modified="1754006404">
+      <entry>
+        <headword charset="sc">举手</headword>
+        <headword charset="tc">舉手</headword>
+        <pron type="hypy" tones="numbers">ju3shou3</pron>
+        <defn>to raise one's hand</defn>
+      </entry>
+      <catassign category="Plecoach Demo/校园生活/课堂"/>
+      <scoreinfo scorefile="Default" score="1400" difficulty="104" history="5362" correct="2" incorrect="2" reviewed="4" sincelast="0" firstreviewedtime="1751414404" lastreviewedtime="1754006404"/>
+    </card>
+    <card language="chinese" created="1751328005" modified="1754006405">
+      <entry>
+        <headword charset="sc">回答</headword>
+        <headword charset="tc">回答</headword>
+        <pron type="hypy" tones="numbers">hui2da2</pron>
+        <defn>to answer; an answer</defn>
+      </entry>
+      <catassign category="Plecoach Demo/校园生活/课堂"/>
+    </card>
+    <card language="chinese" created="1751328006" modified="1754006406">
+      <entry>
+        <headword charset="sc">作业</headword>
+        <headword charset="tc">作業</headword>
+        <pron type="hypy" tones="numbers">zuo4ye4</pron>
+        <defn>homework; assignment</defn>
+      </entry>
+      <catassign category="Plecoach Demo/校园生活/课堂"/>
+      <catassign category="Plecoach Demo/重点复习/本周"/>
+      <scoreinfo scorefile="Default" score="400" difficulty="92" history="2632" correct="1" incorrect="3" reviewed="4" sincelast="0" firstreviewedtime="1751414406" lastreviewedtime="1754006406"/>
+    </card>
+
+    <card language="chinese" created="1751328007" modified="1754006407">
+      <entry>
+        <headword charset="sc">同学</headword>
+        <headword charset="tc">同學</headword>
+        <pron type="hypy" tones="numbers">tong2xue2</pron>
+        <defn>classmate</defn>
+      </entry>
+      <catassign category="Plecoach Demo/校园生活/课后"/>
+      <scoreinfo scorefile="Default" score="10500" difficulty="98" history="66656" correct="5" incorrect="0" reviewed="5" sincelast="4" firstreviewedtime="1751414407" lastreviewedtime="1754006407"/>
+    </card>
+    <card language="chinese" created="1751328008" modified="1754006408">
+      <entry>
+        <headword charset="sc">图书馆</headword>
+        <headword charset="tc">圖書館</headword>
+        <pron type="hypy" tones="numbers">tu2shu1guan3</pron>
+        <defn>library</defn>
+      </entry>
+      <catassign category="Plecoach Demo/校园生活/课后"/>
+      <scoreinfo scorefile="Default" score="6800" difficulty="100" history="6566" correct="4" incorrect="0" reviewed="4" sincelast="3" firstreviewedtime="1751414408" lastreviewedtime="1754006408"/>
+    </card>
+    <card language="chinese" created="1751328009" modified="1754006409">
+      <entry>
+        <headword charset="sc">借书</headword>
+        <headword charset="tc">借書</headword>
+        <pron type="hypy" tones="numbers">jie4shu1</pron>
+        <defn>to borrow a book</defn>
+      </entry>
+      <catassign category="Plecoach Demo/校园生活/课后"/>
+      <scoreinfo scorefile="Default" score="3200" difficulty="108" history="4654" correct="4" incorrect="0" reviewed="4" sincelast="1" firstreviewedtime="1751414409" lastreviewedtime="1754006409"/>
+    </card>
+    <card language="chinese" created="1751328010" modified="1754006410">
+      <entry>
+        <headword charset="sc">讨论</headword>
+        <headword charset="tc">討論</headword>
+        <pron type="hypy" tones="numbers">tao3lun4</pron>
+        <defn>to discuss; discussion</defn>
+      </entry>
+      <catassign category="Plecoach Demo/校园生活/课后"/>
+      <catassign category="Plecoach Demo/重点复习/本周"/>
+      <scoreinfo scorefile="Default" score="900" difficulty="106" history="5263" correct="2" incorrect="2" reviewed="4" sincelast="0" firstreviewedtime="1751414410" lastreviewedtime="1754006410"/>
+    </card>
+    <card language="chinese" created="1751328011" modified="1754006411">
+      <entry>
+        <headword charset="sc">一起</headword>
+        <headword charset="tc">一起</headword>
+        <pron type="hypy" tones="numbers">yi1qi3</pron>
+        <defn>together</defn>
+      </entry>
+      <catassign category="Plecoach Demo/校园生活/课后"/>
+    </card>
+    <card language="chinese" created="1751328012" modified="1754006412">
+      <entry>
+        <headword charset="sc">进展</headword>
+        <headword charset="tc">進展</headword>
+        <pron type="hypy" tones="numbers">jin4zhan3</pron>
+        <defn>progress; to make progress</defn>
+      </entry>
+      <catassign category="Plecoach Demo/校园生活/课后"/>
+      <scoreinfo scorefile="Default" score="500" difficulty="94" history="3232" correct="0" incorrect="4" reviewed="4" sincelast="0" firstreviewedtime="1751414412" lastreviewedtime="1754006412"/>
+    </card>
+
+    <card language="chinese" created="1751328013" modified="1754006413">
+      <entry>
+        <headword charset="sc">菜单</headword>
+        <headword charset="tc">菜單</headword>
+        <pron type="hypy" tones="numbers">cai4dan1</pron>
+        <defn>menu</defn>
+      </entry>
+      <catassign category="Plecoach Demo/周末计划/餐厅"/>
+      <scoreinfo scorefile="Default" score="11200" difficulty="96" history="66666" correct="5" incorrect="0" reviewed="5" sincelast="5" firstreviewedtime="1751414413" lastreviewedtime="1754006413"/>
+    </card>
+    <card language="chinese" created="1751328014" modified="1754006414">
+      <entry>
+        <headword charset="sc">点菜</headword>
+        <headword charset="tc">點菜</headword>
+        <pron type="hypy" tones="numbers">dian3cai4</pron>
+        <defn>to order dishes</defn>
+      </entry>
+      <catassign category="Plecoach Demo/周末计划/餐厅"/>
+      <scoreinfo scorefile="Default" score="6100" difficulty="100" history="5656" correct="4" incorrect="0" reviewed="4" sincelast="3" firstreviewedtime="1751414414" lastreviewedtime="1754006414"/>
+    </card>
+    <card language="chinese" created="1751328015" modified="1754006415">
+      <entry>
+        <headword charset="sc">推荐</headword>
+        <headword charset="tc">推薦</headword>
+        <pron type="hypy" tones="numbers">tui1jian4</pron>
+        <defn>to recommend; recommendation</defn>
+      </entry>
+      <catassign category="Plecoach Demo/周末计划/餐厅"/>
+      <scoreinfo scorefile="Default" score="2800" difficulty="110" history="4564" correct="4" incorrect="0" reviewed="4" sincelast="1" firstreviewedtime="1751414415" lastreviewedtime="1754006415"/>
+    </card>
+    <card language="chinese" created="1751328016" modified="1754006416">
+      <entry>
+        <headword charset="sc">清淡</headword>
+        <headword charset="tc">清淡</headword>
+        <pron type="hypy" tones="numbers">qing1dan4</pron>
+        <defn>light; not greasy or strongly flavored</defn>
+      </entry>
+      <catassign category="Plecoach Demo/周末计划/餐厅"/>
+      <catassign category="Plecoach Demo/重点复习/本周"/>
+      <scoreinfo scorefile="Default" score="800" difficulty="104" history="3526" correct="2" incorrect="2" reviewed="4" sincelast="0" firstreviewedtime="1751414416" lastreviewedtime="1754006416"/>
+    </card>
+    <card language="chinese" created="1751328017" modified="1754006417">
+      <entry>
+        <headword charset="sc">打包</headword>
+        <headword charset="tc">打包</headword>
+        <pron type="hypy" tones="numbers">da3bao1</pron>
+        <defn>to pack; to get food to go</defn>
+      </entry>
+      <catassign category="Plecoach Demo/周末计划/餐厅"/>
+    </card>
+    <card language="chinese" created="1751328018" modified="1754006418">
+      <entry>
+        <headword charset="sc">买单</headword>
+        <headword charset="tc">買單</headword>
+        <pron type="hypy" tones="numbers">mai3dan1</pron>
+        <defn>to pay the bill</defn>
+      </entry>
+      <catassign category="Plecoach Demo/周末计划/餐厅"/>
+      <scoreinfo scorefile="Default" score="300" difficulty="90" history="2233" correct="0" incorrect="4" reviewed="4" sincelast="0" firstreviewedtime="1751414418" lastreviewedtime="1754006418"/>
+    </card>
+
+    <card language="chinese" created="1751328019" modified="1754006419">
+      <entry>
+        <headword charset="sc">散步</headword>
+        <headword charset="tc">散步</headword>
+        <pron type="hypy" tones="numbers">san4bu4</pron>
+        <defn>to take a walk</defn>
+      </entry>
+      <catassign category="Plecoach Demo/周末计划/公园"/>
+      <scoreinfo scorefile="Default" score="9800" difficulty="98" history="66665" correct="5" incorrect="0" reviewed="5" sincelast="4" firstreviewedtime="1751414419" lastreviewedtime="1754006419"/>
+    </card>
+    <card language="chinese" created="1751328020" modified="1754006420">
+      <entry>
+        <headword charset="sc">骑车</headword>
+        <headword charset="tc">騎車</headword>
+        <pron type="hypy" tones="numbers">qi2che1</pron>
+        <defn>to ride a bicycle</defn>
+      </entry>
+      <catassign category="Plecoach Demo/周末计划/公园"/>
+      <scoreinfo scorefile="Default" score="5900" difficulty="102" history="6565" correct="4" incorrect="0" reviewed="4" sincelast="3" firstreviewedtime="1751414420" lastreviewedtime="1754006420"/>
+    </card>
+    <card language="chinese" created="1751328021" modified="1754006421">
+      <entry>
+        <headword charset="sc">风景</headword>
+        <headword charset="tc">風景</headword>
+        <pron type="hypy" tones="numbers">feng1jing3</pron>
+        <defn>scenery; landscape</defn>
+      </entry>
+      <catassign category="Plecoach Demo/周末计划/公园"/>
+      <scoreinfo scorefile="Default" score="3500" difficulty="106" history="4655" correct="4" incorrect="0" reviewed="4" sincelast="2" firstreviewedtime="1751414421" lastreviewedtime="1754006421"/>
+    </card>
+    <card language="chinese" created="1751328022" modified="1754006422">
+      <entry>
+        <headword charset="sc">晒太阳</headword>
+        <headword charset="tc">曬太陽</headword>
+        <pron type="hypy" tones="numbers">shai4tai4yang2</pron>
+        <defn>to bask in the sun</defn>
+      </entry>
+      <catassign category="Plecoach Demo/周末计划/公园"/>
+      <scoreinfo scorefile="Default" score="1100" difficulty="108" history="4632" correct="2" incorrect="2" reviewed="4" sincelast="0" firstreviewedtime="1751414422" lastreviewedtime="1754006422"/>
+    </card>
+    <card language="chinese" created="1751328023" modified="1754006423">
+      <entry>
+        <headword charset="sc">野餐</headword>
+        <headword charset="tc">野餐</headword>
+        <pron type="hypy" tones="numbers">ye3can1</pron>
+        <defn>picnic; to have a picnic</defn>
+      </entry>
+      <catassign category="Plecoach Demo/周末计划/公园"/>
+    </card>
+    <card language="chinese" created="1751328024" modified="1754006424">
+      <entry>
+        <headword charset="sc">下雨</headword>
+        <headword charset="tc">下雨</headword>
+        <pron type="hypy" tones="numbers">xia4yu3</pron>
+        <defn>to rain</defn>
+      </entry>
+      <catassign category="Plecoach Demo/周末计划/公园"/>
+      <catassign category="Plecoach Demo/重点复习/本周"/>
+      <scoreinfo scorefile="Default" score="200" difficulty="90" history="2322" correct="0" incorrect="4" reviewed="4" sincelast="0" firstreviewedtime="1751414424" lastreviewedtime="1754006424"/>
+    </card>
+  </cards>
+</plecoflash>
