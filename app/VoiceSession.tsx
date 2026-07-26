@@ -22,6 +22,7 @@ import {
 import type { DisconnectReason } from "livekit-client";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Card } from "./PlecoachApp";
+import { groupTranscriptTurns } from "./transcript-turns";
 import { resolveRoomDisconnection } from "./voice-session-lifecycle";
 
 interface ConnectionDetails {
@@ -59,6 +60,10 @@ function LiveConversation({
 }) {
   const { state, audioTrack, agent } = useVoiceAssistant();
   const transcriptions = useTranscriptions();
+  const transcriptTurns = useMemo(
+    () => groupTranscriptTurns(transcriptions),
+    [transcriptions],
+  );
   const [cards, setCards] = useState(plan.target_cards);
   const transcriptEnd = useRef<HTMLDivElement>(null);
   const status = statusCopy[state] ?? statusCopy.connecting;
@@ -94,7 +99,7 @@ function LiveConversation({
 
   useEffect(() => {
     transcriptEnd.current?.scrollIntoView({ behavior: "smooth", block: "end" });
-  }, [transcriptions]);
+  }, [transcriptTurns]);
 
   useEffect(() => {
     let cancelled = false;
@@ -268,18 +273,18 @@ function LiveConversation({
             </span>
           </div>
           <div className="transcript-list" aria-live="polite">
-            {transcriptions.length ? (
-              transcriptions.map((item, index) => {
-                const isTutor = item.participantInfo.identity === agent?.identity;
+            {transcriptTurns.length ? (
+              transcriptTurns.map((turn) => {
+                const isTutor = turn.participantIdentity === agent?.identity;
                 return (
                   <article
-                    key={`${item.participantInfo.identity}-${index}-${item.text}`}
+                    key={turn.id}
                     className={isTutor ? "tutor-line" : "learner-line"}
                   >
                     <span>{isTutor ? "陪" : "你"}</span>
                     <div>
                       <small>{isTutor ? "陪练老师" : "你"}</small>
-                      <p>{item.text}</p>
+                      <p>{turn.text}</p>
                     </div>
                   </article>
                 );

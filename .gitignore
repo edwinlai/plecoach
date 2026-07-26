@@ -46,6 +46,7 @@ MCC.xml
 
 # typescript
 next-env.d.ts
+*.tsbuildinfo
 /dist/
 /.wrangler/
 /outputs/
