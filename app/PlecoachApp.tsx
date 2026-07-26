@@ -28,6 +28,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { scopeCardsToSelection, summarizeMastery } from "./deck-scope";
 import { VoiceSession } from "./VoiceSession";
 
 const API_BASE =
@@ -571,34 +572,37 @@ function DeckDashboard({
   error: string | null;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
-  const summary = useMemo(() => {
-    const base = {
-      unassessed: 0,
-      learning: 0,
-      practicing: 0,
-      fluent: 0,
+  const scopedCards = useMemo(
+    () => scopeCardsToSelection(deck.cards, selectedPaths),
+    [deck.cards, selectedPaths],
+  );
+  const summary = useMemo(() => summarizeMastery(scopedCards), [scopedCards]);
+  const totalSummary = useMemo(() => {
+    if (deck.cards.length) return summarizeMastery(deck.cards);
+    return {
+      unassessed: deck.mastery_summary?.unassessed ?? deck.card_count,
+      learning: deck.mastery_summary?.learning ?? 0,
+      practicing: deck.mastery_summary?.practicing ?? 0,
+      fluent: deck.mastery_summary?.fluent ?? 0,
     };
-    if (deck.mastery_summary) {
-      return { ...base, ...deck.mastery_summary };
-    }
-    deck.cards.forEach((card) => {
-      base[card.mastery_state ?? "unassessed"] += 1;
-    });
-    if (!deck.cards.length) base.unassessed = deck.card_count;
-    return base;
   }, [deck]);
   const assessed =
     summary.learning + summary.practicing + summary.fluent;
   const progress = deck.card_count
-    ? Math.round((summary.fluent / deck.card_count) * 100)
+    ? Math.round((totalSummary.fluent / deck.card_count) * 100)
     : 0;
-  const selectedLabel =
-    selectedPaths.size === 0
-      ? "All folders"
-      : selectedPaths.size === 1
-        ? "1 selected folder"
-        : `${selectedPaths.size} selected folders`;
-  const previewCards = deck.cards.slice(0, 8);
+  const selectedLabel = useMemo(() => {
+    if (selectedPaths.size === 0) {
+      return `All folders · ${scopedCards.length} cards`;
+    }
+    if (selectedPaths.size === 1) {
+      const path = Array.from(selectedPaths)[0];
+      return `${path.split("/").at(-1)} · ${scopedCards.length} cards`;
+    }
+    return `${selectedPaths.size} selected folders · ${scopedCards.length} cards`;
+  }, [scopedCards.length, selectedPaths]);
+  const previewCards = scopedCards.slice(0, 8);
+  const targetCount = Math.min(6, scopedCards.length);
 
   return (
     <main className="app-shell">
@@ -736,7 +740,10 @@ function DeckDashboard({
               <Target size={21} />
             </div>
             <div>
-              <strong>We’ll choose six cards when you continue</strong>
+              <strong>
+                We’ll choose {targetCount} {targetCount === 1 ? "card" : "cards"}{" "}
+                when you continue
+              </strong>
               <p>
                 Unassessed and weak words come first. Pleco statistics are only
                 a soft signal; speaking evidence decides fluency.
@@ -747,8 +754,12 @@ function DeckDashboard({
           {previewCards.length ? (
             <div className="deck-glimpse">
               <div className="section-heading">
-                <span>A glimpse of this deck</span>
-                <small>{assessed} assessed in Plecoach</small>
+                <span>
+                  A glimpse of {selectedPaths.size ? "this selection" : "this deck"}
+                </span>
+                <small>
+                  {assessed} of {scopedCards.length} assessed in Plecoach
+                </small>
               </div>
               <div className="word-chip-grid">
                 {previewCards.map((card) => (
