@@ -912,10 +912,10 @@ input:focus-visible {
 .word-chip {
   display: inline-grid;
   grid-template-columns: auto minmax(0, 1fr);
-  gap: 7px;
+  gap: 9px;
   align-items: baseline;
   max-width: 100%;
-  padding: 9px 12px;
+  padding: 11px 14px;
   border: 1px solid #e2dcd2;
   border-radius: 10px;
   background: var(--white);
@@ -926,7 +926,7 @@ input:focus-visible {
 }
 
 .word-hanzi {
-  font-size: 18px;
+  font-size: 20px;
   font-weight: 720;
   line-height: 1.25;
 }
@@ -935,27 +935,38 @@ input:focus-visible {
   display: inline-flex;
   min-width: 0;
   align-items: baseline;
-  gap: 5px;
+  gap: 6px;
+  line-height: 1.4;
 }
 
 .word-pinyin {
   flex: 0 0 auto;
   color: var(--ink-soft);
-  font-size: 11px;
+  font-size: 14px;
 }
 
 .word-meta-separator {
   color: #b3ada4;
-  font-size: 11px;
+  font-size: 14px;
 }
 
 .word-definition {
   max-width: 240px;
   overflow: hidden;
   color: #5f6864;
-  font-size: 11px;
+  font-size: 14px;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.word-chip.is-compact .word-hanzi {
+  font-size: 18px;
+}
+
+.word-chip.is-compact .word-pinyin,
+.word-chip.is-compact .word-meta-separator,
+.word-chip.is-compact .word-definition {
+  font-size: 12px;
 }
 
 .word-chip.is-compact .word-definition {
@@ -1290,7 +1301,7 @@ input:focus-visible {
   grid-template-columns: 24px minmax(0, 1fr) auto;
   gap: 9px;
   align-items: center;
-  padding: 10px;
+  padding: 12px;
   border: 1px solid #e6e0d6;
   border-radius: 11px;
   background: rgba(255, 255, 255, 0.5);
@@ -1321,7 +1332,7 @@ input:focus-visible {
 }
 
 .session-word-list strong {
-  font-size: 17px;
+  font-size: 20px;
   line-height: 1.25;
   overflow-wrap: anywhere;
 }
@@ -1334,11 +1345,11 @@ input:focus-visible {
   display: flex;
   min-width: 0;
   align-items: baseline;
-  gap: 4px;
-  margin-top: 4px;
+  gap: 5px;
+  margin-top: 5px;
   color: var(--ink-soft);
-  font-size: 11px;
-  line-height: 1.35;
+  font-size: 14px;
+  line-height: 1.4;
 }
 
 .session-word-pinyin {
@@ -1359,7 +1370,7 @@ input:focus-visible {
 .evidence-label {
   white-space: nowrap;
   color: #848b88;
-  font-size: 10px;
+  font-size: 12px;
   line-height: 1.2;
 }
 
@@ -1579,12 +1590,12 @@ input:focus-visible {
   display: grid;
   place-items: center;
   flex: 0 0 auto;
-  width: 25px;
-  height: 25px;
+  width: 30px;
+  height: 30px;
   border-radius: 8px;
   background: var(--jade);
   color: white;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 700;
 }
 
@@ -1596,7 +1607,7 @@ input:focus-visible {
   display: block;
   margin-bottom: 3px;
   color: var(--jade);
-  font-size: 10px;
+  font-size: 12px;
   line-height: 1.3;
   font-weight: 700;
 }
@@ -1607,8 +1618,8 @@ input:focus-visible {
 
 .transcript-list p {
   margin: 0;
-  font-size: 15px;
-  line-height: 1.6;
+  font-size: 18px;
+  line-height: 1.65;
   overflow-wrap: anywhere;
 }
 
@@ -1829,11 +1840,11 @@ input:focus-visible {
   }
 
   .transcript-list small {
-    font-size: 11px;
+    font-size: 12px;
   }
 
   .transcript-list p {
-    font-size: 16px;
+    font-size: 19px;
     line-height: 1.65;
   }
 }
@@ -1903,11 +1914,11 @@ input:focus-visible {
   }
 
   .session-word-list strong {
-    font-size: 18px;
+    font-size: 21px;
   }
 
   .session-word-meta {
-    font-size: 12px;
+    font-size: 14px;
     line-height: 1.4;
   }
 
