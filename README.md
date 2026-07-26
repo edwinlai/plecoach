@@ -100,7 +100,7 @@ An answer after a hint can show progress, but it is weaker evidence than indepen
 
 ### A cascaded LiveKit pipeline
 
-The default voice path is streaming Mandarin STT with Deepgram Nova-3, tutoring with Google Gemma 4 31B IT, and streaming Mandarin TTS with Cartesia Sonic-3, all through LiveKit Inference.
+The default voice path is streaming Mandarin STT with Deepgram Nova-3, tutoring with Google Gemma 4 31B IT, and streaming Mandarin TTS with Cartesia Sonic-3, all through LiveKit Inference. Sonic-3 uses Cartesia's **Chinese Female Conversational** preset rather than a multilingual American voice, so the tutor speaks with native Mandarin cadence while retaining low-latency streaming and aligned transcripts.
 
 A native speech-to-speech model could reduce latency and sound more expressive. The cascade was chosen because it produces an explicit transcript, which is useful evidence for vocabulary assessment, is visible to the learner, and makes incorrect judgments debuggable. The cost is an extra inference boundary and sensitivity to transcription errors.
 

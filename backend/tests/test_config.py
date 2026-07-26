@@ -3,9 +3,13 @@ from __future__ import annotations
 import pytest
 
 from plecoach.config import (
+    DEFAULT_TTS_LANGUAGE,
+    DEFAULT_TTS_MODEL,
+    DEFAULT_TTS_VOICE,
     LiveKitConfigurationError,
     livekit_agent_name,
     livekit_configuration_errors,
+    livekit_tts_config,
     load_livekit_config,
 )
 
@@ -115,3 +119,40 @@ def test_agent_name_is_normalized_once_for_dispatch_and_registration() -> None:
             "LIVEKIT_AGENT_NAME": "  plecoach-tutor  ",
         }
     ).agent_name == "plecoach-tutor"
+
+
+def test_tts_defaults_to_native_conversational_mandarin_voice() -> None:
+    config = livekit_tts_config({})
+
+    assert config.model == "cartesia/sonic-3" == DEFAULT_TTS_MODEL
+    assert config.voice == "e90c6678-f0d3-4767-9883-5d0ecf5894a8"
+    assert config.voice == DEFAULT_TTS_VOICE
+    assert config.language == "zh" == DEFAULT_TTS_LANGUAGE
+
+
+def test_tts_settings_allow_trimmed_environment_overrides() -> None:
+    config = livekit_tts_config(
+        {
+            "LIVEKIT_TTS_MODEL": " custom/model ",
+            "LIVEKIT_TTS_VOICE": " custom-voice ",
+            "LIVEKIT_TTS_LANGUAGE": " zh-CN ",
+        }
+    )
+
+    assert config.model == "custom/model"
+    assert config.voice == "custom-voice"
+    assert config.language == "zh-CN"
+
+
+def test_blank_tts_settings_fall_back_to_safe_defaults() -> None:
+    config = livekit_tts_config(
+        {
+            "LIVEKIT_TTS_MODEL": " ",
+            "LIVEKIT_TTS_VOICE": "",
+            "LIVEKIT_TTS_LANGUAGE": "\t",
+        }
+    )
+
+    assert config.model == DEFAULT_TTS_MODEL
+    assert config.voice == DEFAULT_TTS_VOICE
+    assert config.language == DEFAULT_TTS_LANGUAGE

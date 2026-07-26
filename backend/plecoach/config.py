@@ -9,6 +9,9 @@ from dataclasses import dataclass, field
 from urllib.parse import urlsplit
 
 DEFAULT_AGENT_NAME = "plecoach-tutor"
+DEFAULT_TTS_MODEL = "cartesia/sonic-3"
+DEFAULT_TTS_VOICE = "e90c6678-f0d3-4767-9883-5d0ecf5894a8"
+DEFAULT_TTS_LANGUAGE = "zh"
 
 _AGENT_NAME_RE = re.compile(r"^[A-Za-z0-9_.-]{1,64}$")
 _PLACEHOLDER_VALUES = frozenset(
@@ -53,6 +56,13 @@ class LiveKitConfig:
     agent_name: str
 
 
+@dataclass(frozen=True, slots=True)
+class LiveKitTTSConfig:
+    model: str
+    voice: str
+    language: str
+
+
 def _normalized_placeholder_candidate(value: str) -> str:
     return re.sub(r"[^a-z0-9]+", "_", value.strip().lower()).strip("_")
 
@@ -74,6 +84,23 @@ def livekit_agent_name(environ: Mapping[str, str] | None = None) -> str:
     return (
         source.get("LIVEKIT_AGENT_NAME", DEFAULT_AGENT_NAME).strip()
         or DEFAULT_AGENT_NAME
+    )
+
+
+def livekit_tts_config(
+    environ: Mapping[str, str] | None = None,
+) -> LiveKitTTSConfig:
+    """Load TTS settings, falling back to a native conversational Mandarin voice."""
+
+    source = os.environ if environ is None else environ
+
+    def configured(name: str, default: str) -> str:
+        return source.get(name, default).strip() or default
+
+    return LiveKitTTSConfig(
+        model=configured("LIVEKIT_TTS_MODEL", DEFAULT_TTS_MODEL),
+        voice=configured("LIVEKIT_TTS_VOICE", DEFAULT_TTS_VOICE),
+        language=configured("LIVEKIT_TTS_LANGUAGE", DEFAULT_TTS_LANGUAGE),
     )
 
 

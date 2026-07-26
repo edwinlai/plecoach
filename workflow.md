@@ -9,7 +9,7 @@ This project was built as a time-boxed take-home with AI used as an engineering 
 - **LiveKit Inference** supplies the runtime voice models:
   - Deepgram Nova-3 for streaming Mandarin speech-to-text.
   - Google Gemma 4 31B IT for tutoring and assessment.
-  - Cartesia Sonic-3 for streaming Mandarin text-to-speech.
+  - Cartesia Sonic-3 with its Chinese Female Conversational preset for native Mandarin streaming text-to-speech.
 - **Official documentation and targeted browser research** were used for volatile or provider-specific facts: current LiveKit model identifiers, Mandarin support, agent dispatch, turn handling, and token generation. I avoided relying on model memory for current SDK behavior.
 - **Local command-line checks and Docker Compose** form the verification harness. Tests cover deterministic application logic; container checks verify the evaluator's actual startup path.
 

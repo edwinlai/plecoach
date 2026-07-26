@@ -30,6 +30,7 @@ from livekit.agents.llm import ChatMessage, ToolError
 from .config import (
     LiveKitConfigurationError,
     livekit_agent_name,
+    livekit_tts_config,
     load_livekit_config,
 )
 from .store import RedisStore
@@ -47,10 +48,6 @@ logger = logging.getLogger("plecoach.agent")
 
 DEFAULT_STT_MODEL = "deepgram/nova-3"
 DEFAULT_LLM_MODEL = "google/gemma-4-31b-it"
-DEFAULT_TTS_MODEL = "cartesia/sonic-3"
-# A default Cartesia voice published in LiveKit's model documentation. Sonic 3
-# is multilingual; ``language='zh'`` below selects its Chinese synthesis path.
-DEFAULT_TTS_VOICE = "9626c31c-bec5-4cca-baa8-f8ba9e84c8bc"
 ASSESSMENT_TOPIC = "plecoach.card-assessment"
 
 
@@ -297,6 +294,7 @@ async def plecoach_session(ctx: JobContext) -> None:
         store=store,
         publish_event=publish_event,
     )
+    tts_config = livekit_tts_config()
 
     async def cleanup() -> None:
         await runtime.drain_writes()
@@ -322,9 +320,9 @@ async def plecoach_session(ctx: JobContext) -> None:
             model=os.getenv("LIVEKIT_LLM_MODEL", DEFAULT_LLM_MODEL),
         ),
         tts=inference.TTS(
-            model=os.getenv("LIVEKIT_TTS_MODEL", DEFAULT_TTS_MODEL),
-            voice=os.getenv("LIVEKIT_TTS_VOICE", DEFAULT_TTS_VOICE),
-            language=os.getenv("LIVEKIT_TTS_LANGUAGE", "zh"),
+            model=tts_config.model,
+            voice=tts_config.voice,
+            language=tts_config.language,
         ),
         turn_handling=TurnHandlingOptions(
             turn_detection=inference.TurnDetector(),
