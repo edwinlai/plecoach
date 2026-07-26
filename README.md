@@ -89,6 +89,8 @@ The boundaries are intentional:
 
 Pleco's score, difficulty, correct/incorrect counts, and review history are imported as a **soft scheduling signal only**. A high flashcard score may make a word less urgent, but it never proves conversational fluency.
 
+Planning history is stored separately from mastery. Recently proposed focus words receive a bounded cooldown so consecutive plans rotate through equally eligible cards; previewing or closing a plan never counts as learning evidence, and genuinely due weak words can still recur.
+
 Plecoach starts conversational mastery as unassessed and gathers two kinds of evidence:
 
 1. **Comprehension:** Did the learner respond in a way that shows they understood the word in context?

@@ -9,7 +9,7 @@ import uuid
 from abc import ABC, abstractmethod
 from typing import Literal, Sequence
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from .mastery import (
     build_category_tree,
@@ -60,6 +60,14 @@ class StoredDeck(BaseModel):
     cards: list[Card]
 
 
+class PlanningState(BaseModel):
+    """Target exposure history kept separate from conversational mastery."""
+
+    learner_id: str
+    recent_target_card_ids: list[str] = Field(default_factory=list)
+    target_selection_counts: dict[str, int] = Field(default_factory=dict)
+
+
 def _copy_model(model: BaseModel):
     """Round trip to avoid callers mutating in-memory test state by reference."""
 
@@ -95,6 +103,14 @@ class Store(ABC):
 
     @abstractmethod
     async def _save_deck(self, deck: StoredDeck) -> None: ...
+
+    @abstractmethod
+    async def _load_planning_state(
+        self, learner_id: str
+    ) -> PlanningState | None: ...
+
+    @abstractmethod
+    async def _save_planning_state(self, state: PlanningState) -> None: ...
 
     @abstractmethod
     async def _load_session(self, session_id: str) -> SessionRecord | None: ...
@@ -154,6 +170,25 @@ class Store(ABC):
         await self._save_deck(deck)
 
         active_cards = [card for card in merged if card.active]
+        active_ids = {card.card_id for card in active_cards}
+        planning_state = await self._load_planning_state(learner_id)
+        if planning_state is not None:
+            planning_state = planning_state.model_copy(
+                update={
+                    "recent_target_card_ids": [
+                        card_id
+                        for card_id in planning_state.recent_target_card_ids
+                        if card_id in active_ids
+                    ],
+                    "target_selection_counts": {
+                        card_id: count
+                        for card_id, count in planning_state.target_selection_counts.items()
+                        if card_id in active_ids
+                    },
+                }
+            )
+            await self._save_planning_state(planning_state)
+
         prior_ids = set(existing_by_id)
         incoming_ids = set(incoming_by_id)
         return ImportResponse(
@@ -201,7 +236,16 @@ class Store(ABC):
         normalized_paths = list(
             dict.fromkeys(path.strip().strip("/") for path in category_paths if path.strip("/"))
         )
-        targets = select_target_cards(deck.cards, normalized_paths, target_count)
+        planning_state = await self._load_planning_state(learner_id)
+        if planning_state is None:
+            planning_state = PlanningState(learner_id=learner_id)
+        targets = select_target_cards(
+            deck.cards,
+            normalized_paths,
+            target_count,
+            recent_target_card_ids=planning_state.recent_target_card_ids,
+            target_selection_counts=planning_state.target_selection_counts,
+        )
         if not targets:
             raise InvalidSelectionError(
                 "The selected categories do not contain any active flashcards."
@@ -219,6 +263,19 @@ class Store(ABC):
             created_at=now,
             updated_at=now,
         )
+        target_ids = [card.card_id for card in targets]
+        selection_counts = dict(planning_state.target_selection_counts)
+        for card_id in target_ids:
+            selection_counts[card_id] = selection_counts.get(card_id, 0) + 1
+        planning_state = planning_state.model_copy(
+            update={
+                "recent_target_card_ids": target_ids,
+                "target_selection_counts": selection_counts,
+            }
+        )
+        # Planning history has its own key, so it cannot overwrite an agent's
+        # concurrent mastery update to the durable deck.
+        await self._save_planning_state(planning_state)
         await self._save_session(session)
         return session
 
@@ -357,6 +414,9 @@ class RedisStore(Store):
     def _session_key(self, session_id: str) -> str:
         return f"{self.prefix}:session:{session_id}"
 
+    def _planning_key(self, learner_id: str) -> str:
+        return f"{self.prefix}:learner:{learner_id}:planning"
+
     async def ping(self) -> bool:
         return bool(await self._redis.ping())
 
@@ -372,6 +432,18 @@ class RedisStore(Store):
     async def _save_deck(self, deck: StoredDeck) -> None:
         await self._redis.set(
             self._deck_key(deck.metadata.learner_id), deck.model_dump_json()
+        )
+
+    async def _load_planning_state(
+        self, learner_id: str
+    ) -> PlanningState | None:
+        raw = await self._redis.get(self._planning_key(learner_id))
+        return PlanningState.model_validate_json(raw) if raw else None
+
+    async def _save_planning_state(self, state: PlanningState) -> None:
+        await self._redis.set(
+            self._planning_key(state.learner_id),
+            state.model_dump_json(),
         )
 
     async def _load_session(self, session_id: str) -> SessionRecord | None:
@@ -391,6 +463,7 @@ class MemoryStore(Store):
 
     def __init__(self) -> None:
         self._decks: dict[str, StoredDeck] = {}
+        self._planning_states: dict[str, PlanningState] = {}
         self._sessions: dict[str, SessionRecord] = {}
         self._lock = asyncio.Lock()
 
@@ -409,6 +482,17 @@ class MemoryStore(Store):
         async with self._lock:
             self._decks[deck.metadata.learner_id] = _copy_model(deck)
 
+    async def _load_planning_state(
+        self, learner_id: str
+    ) -> PlanningState | None:
+        async with self._lock:
+            state = self._planning_states.get(learner_id)
+            return _copy_model(state) if state else None
+
+    async def _save_planning_state(self, state: PlanningState) -> None:
+        async with self._lock:
+            self._planning_states[state.learner_id] = _copy_model(state)
+
     async def _load_session(self, session_id: str) -> SessionRecord | None:
         async with self._lock:
             session = self._sessions.get(session_id)
@@ -417,4 +501,3 @@ class MemoryStore(Store):
     async def _save_session(self, session: SessionRecord) -> None:
         async with self._lock:
             self._sessions[session.session_id] = _copy_model(session)
-

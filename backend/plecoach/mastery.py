@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import hashlib
 from datetime import timedelta
-from typing import Any, Iterable, Sequence
+from typing import Any, Iterable, Mapping, Sequence
 
 from .schemas import (
     AssessmentEvidence,
@@ -17,6 +17,8 @@ from .schemas import (
 )
 
 MAX_EVIDENCE_ITEMS = 20
+PLANNING_ROTATION_PENALTY = 14.0
+MAX_SELECTION_COUNT_GAP = 2
 
 
 def _ewma(previous: float | None, observation: float, alpha: float = 0.45) -> float:
@@ -170,14 +172,42 @@ def card_matches_categories(card: Card, selected_paths: Sequence[str]) -> bool:
 
 
 def select_target_cards(
-    cards: Iterable[Card], selected_paths: Sequence[str], target_count: int
+    cards: Iterable[Card],
+    selected_paths: Sequence[str],
+    target_count: int,
+    recent_target_card_ids: Sequence[str] = (),
+    target_selection_counts: Mapping[str, int] | None = None,
 ) -> list[Card]:
     eligible = [
         card
         for card in cards
         if card.active and card_matches_categories(card, selected_paths)
     ]
-    eligible.sort(key=planning_priority, reverse=True)
+
+    # Planning recency is deliberately separate from mastery: merely seeing a
+    # card in a preview is not evidence that the learner understands or uses it.
+    # A one-count/last-plan penalty is stronger than the capped Pleco signal
+    # within a mastery tier, but weaker than a genuinely due learning boost.
+    selection_counts = target_selection_counts or {}
+    minimum_selection_count = min(
+        (selection_counts.get(card.card_id, 0) for card in eligible),
+        default=0,
+    )
+    recent_target_ids = set(recent_target_card_ids)
+
+    def priority_with_cooldown(card: Card) -> float:
+        count_gap = max(
+            0,
+            selection_counts.get(card.card_id, 0) - minimum_selection_count,
+        )
+        penalty = (
+            min(count_gap, MAX_SELECTION_COUNT_GAP) * PLANNING_ROTATION_PENALTY
+        )
+        if card.card_id in recent_target_ids:
+            penalty = max(penalty, PLANNING_ROTATION_PENALTY)
+        return planning_priority(card) - penalty
+
+    eligible.sort(key=priority_with_cooldown, reverse=True)
     return eligible[:target_count]
 
 
@@ -251,4 +281,3 @@ def suggest_topics(targets: Sequence[Card], selected_paths: Sequence[str]) -> li
         suggestions.append(f"用“{target_words}”聊聊你的经历")
     suggestions.append("一起编一个小故事，自然地用上今天的词")
     return list(dict.fromkeys(suggestions))[:3]
-
