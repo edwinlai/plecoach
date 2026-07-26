@@ -700,7 +700,7 @@ function DeckDashboard({
       <section className="dashboard-intro">
         <div>
           <p className="eyebrow">欢迎回来 · Welcome back</p>
-          <h1>What do you want to make active today?</h1>
+          <h1>What do you want to review today?</h1>
           <p>
             Choose a Pleco folder. We’ll find the words that need a real
             conversation—not another flip of a card.
