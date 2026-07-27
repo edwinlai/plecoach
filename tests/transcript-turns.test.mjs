@@ -101,6 +101,19 @@ test("turn keys stay stable while live text grows", () => {
   assert.equal(final[0].id, partial[0].id);
 });
 
+test("character-by-character revisions keep one stable transcript row", () => {
+  const prefixes = ["你", "你好", "你好！", "你好！今", "你好！今天"];
+  const turnsByRevision = prefixes.map((text) =>
+    groupTranscriptTurns([fragment("learner", text, "streaming-segment")]),
+  );
+
+  for (const [index, turns] of turnsByRevision.entries()) {
+    assert.equal(turns.length, 1);
+    assert.equal(turns[0].id, "learner:streaming-segment");
+    assert.equal(turns[0].text, prefixes[index]);
+  }
+});
+
 test("a learner pause does not split the turn before the tutor answers", () => {
   const turns = groupTranscriptTurns([
     fragment("learner", "你好", "one", { timestamp: 1_000 }),

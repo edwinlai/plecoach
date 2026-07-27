@@ -20,7 +20,14 @@ import {
   Target,
 } from "lucide-react";
 import type { DisconnectReason } from "livekit-client";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import type { Card } from "./PlecoachApp";
 import { groupTranscriptTurns } from "./transcript-turns";
 import { resolveRoomDisconnection } from "./voice-session-lifecycle";
@@ -47,31 +54,25 @@ const statusCopy: Record<string, { zh: string; en: string }> = {
   speaking: { zh: "轮到我说", en: "Speaking" },
 };
 
-function TranscriptPinyin({ text }: { text: string }) {
-  const [result, setResult] = useState({ text: "", value: "" });
+const HAN_TRANSCRIPT = /\p{Script=Han}/u;
+type TranscriptPinyinConverter = (text: string) => string;
 
-  useEffect(() => {
-    let cancelled = false;
-    void import("./transcript-pinyin")
-      .then(({ toTranscriptPinyin }) => {
-        if (!cancelled) {
-          setResult({ text, value: toTranscriptPinyin(text) });
-        }
-      })
-      .catch(() => {
-        if (!cancelled) setResult({ text, value: "" });
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [text]);
+function TranscriptPinyin({
+  text,
+  converter,
+}: {
+  text: string;
+  converter: TranscriptPinyinConverter | null;
+}) {
+  const value = useMemo(() => converter?.(text) ?? "", [converter, text]);
 
-  const value = result.text === text ? result.value : "";
-  return value ? (
+  if (!HAN_TRANSCRIPT.test(text)) return null;
+
+  return (
     <p className="transcript-pinyin" lang="zh-Latn-pinyin" aria-hidden="true">
-      {value}
+      {value || "\u00a0"}
     </p>
-  ) : null;
+  );
 }
 
 function LiveConversation({
@@ -92,6 +93,8 @@ function LiveConversation({
     [transcriptions],
   );
   const [cards, setCards] = useState(plan.target_cards);
+  const [pinyinConverter, setPinyinConverter] =
+    useState<TranscriptPinyinConverter | null>(null);
   const transcriptList = useRef<HTMLDivElement>(null);
   const followTranscript = useRef(true);
   const status = statusCopy[state] ?? statusCopy.connecting;
@@ -132,26 +135,30 @@ function LiveConversation({
   useDataChannel("plecoach.card-assessment", handleAssessment);
 
   useEffect(() => {
+    let cancelled = false;
+    void import("./transcript-pinyin")
+      .then(({ toTranscriptPinyin }) => {
+        if (!cancelled) {
+          setPinyinConverter(() => toTranscriptPinyin);
+        }
+      })
+      .catch(() => {
+        // Hanzi remains usable if the optional pinyin chunk cannot be loaded.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const stickTranscriptToBottom = useCallback(() => {
     if (!followTranscript.current) return;
     const element = transcriptList.current;
     if (element) element.scrollTop = element.scrollHeight;
-  }, [transcriptTurns]);
-
-  useEffect(() => {
-    const element = transcriptList.current;
-    if (!element) return;
-    const observer = new MutationObserver(() => {
-      if (followTranscript.current) {
-        element.scrollTop = element.scrollHeight;
-      }
-    });
-    observer.observe(element, {
-      childList: true,
-      characterData: true,
-      subtree: true,
-    });
-    return () => observer.disconnect();
   }, []);
+
+  useLayoutEffect(() => {
+    stickTranscriptToBottom();
+  }, [pinyinConverter, stickTranscriptToBottom, transcriptTurns]);
 
   const handleTranscriptScroll = useCallback(() => {
     const element = transcriptList.current;
@@ -250,7 +257,10 @@ function LiveConversation({
                       <p className="transcript-hanzi" lang="zh-CN">
                         {turn.text}
                       </p>
-                      <TranscriptPinyin text={turn.text} />
+                      <TranscriptPinyin
+                        text={turn.text}
+                        converter={pinyinConverter}
+                      />
                     </div>
                   </article>
                 );

@@ -1561,7 +1561,7 @@ input:focus-visible {
   margin: 22px -5px 17px 0;
   padding: 2px 14px 8px 0;
   overflow: auto;
-  scroll-behavior: smooth;
+  overflow-anchor: none;
 }
 
 .transcript-list article {
@@ -1613,6 +1613,7 @@ input:focus-visible {
 
 .transcript-pinyin {
   display: block;
+  min-height: 1.5em;
   margin: 4px 0 0;
   color: var(--ink-soft);
   font-size: clamp(14px, 1.25vw, 16px);

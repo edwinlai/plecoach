@@ -12,17 +12,32 @@ test("live session is transcript-first and no longer renders the tutor orb", asy
   assert.match(source, /className="transcript-list"[\s\S]*aria-live="polite"/);
   assert.match(
     source,
-    /className="transcript-hanzi"[\s\S]*<TranscriptPinyin text=\{turn\.text\}/,
+    /className="transcript-hanzi"[\s\S]*<TranscriptPinyin[\s\S]*text=\{turn\.text\}/,
   );
   assert.doesNotMatch(source, /tutor-orb|orb-character|orb-ring/);
 });
 
-test("pinyin is styled as a supporting line beneath the Hanzi", async () => {
+test("streaming transcript keeps a stable pinyin line without smooth-scroll bounce", async () => {
+  const source = await readFile(
+    new URL("../app/VoiceSession.tsx", import.meta.url),
+    "utf8",
+  );
   const styles = await readFile(
     new URL("../app/globals.css", import.meta.url),
     "utf8",
   );
+  const transcriptListStyles =
+    styles.match(/\.transcript-list\s*\{([^}]*)\}/)?.[1] ?? "";
+  const transcriptPinyinStyles =
+    styles.match(/\.transcript-pinyin\s*\{([^}]*)\}/)?.[1] ?? "";
 
-  assert.match(styles, /\.transcript-pinyin\s*\{[\s\S]*display:\s*block/);
+  assert.doesNotMatch(source, /new MutationObserver|scrollIntoView/);
+  assert.doesNotMatch(source, /behavior:\s*["']smooth["']/);
+  assert.match(source, /useLayoutEffect\(\(\) => \{[\s\S]*stickTranscriptToBottom/);
+  assert.match(source, /\{value \|\| "\\u00a0"\}/);
+  assert.match(transcriptPinyinStyles, /display:\s*block/);
+  assert.match(transcriptPinyinStyles, /min-height:\s*1\.5em/);
+  assert.match(transcriptListStyles, /overflow-anchor:\s*none/);
+  assert.doesNotMatch(transcriptListStyles, /scroll-behavior:\s*smooth/);
   assert.match(styles, /\.transcript-hanzi\s*\{/);
 });
