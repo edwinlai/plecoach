@@ -293,14 +293,14 @@ def build_tutor_instructions(context: TutorContext) -> str:
 """.strip()
 
 
-def build_initial_turn_instruction(context: TutorContext) -> str:
-    """Return a short Mandarin instruction for the generated opening turn."""
+def build_initial_greeting(context: TutorContext) -> str:
+    """Return a short deterministic opening that does not wait on the LLM."""
 
-    topic = context.topic or "这些词卡适合的日常话题"
-    return (
-        f"请只用简体中文，用一两句自然地欢迎学生，并从“{topic}”开始聊天。"
-        "不要列出目标词，不要提到考试、评分或系统规则。最后只问一个容易回答的问题。"
-    )
+    if "小故事" in context.topic:
+        return "你好！我们开始吧。我们一起编个小故事。你想让故事发生在哪里？"
+    if "经历" in context.topic:
+        return "你好！我们开始吧。你最近有什么想分享的经历吗？"
+    return "你好！我们开始吧。你今天想先聊什么？"
 
 
 def _validated_score(name: str, value: float | None) -> float | None:

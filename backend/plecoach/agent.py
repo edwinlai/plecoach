@@ -40,7 +40,7 @@ from .tutor import (
     RedisTutorStoreAdapter,
     TutorContext,
     TutorStore,
-    build_initial_turn_instruction,
+    build_initial_greeting,
     build_tutor_instructions,
 )
 
@@ -341,9 +341,14 @@ async def plecoach_session(ctx: JobContext) -> None:
         },
     )
     await session.start(room=ctx.room, agent=PlecoachTutor(tutor_context))
-    await session.generate_reply(
-        instructions=build_initial_turn_instruction(tutor_context)
+    # A generated first turn can be delayed by a cold inference path or cancelled
+    # by early microphone input. Start with a short fixed Mandarin question so the
+    # room becomes responsive as soon as the tutor joins.
+    opening = session.say(
+        build_initial_greeting(tutor_context),
+        allow_interruptions=False,
     )
+    await opening.wait_for_playout()
 
 
 if __name__ == "__main__":

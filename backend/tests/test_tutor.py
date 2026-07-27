@@ -9,7 +9,7 @@ from plecoach.tutor import (
     RedisTutorStoreAdapter,
     TargetCard,
     TutorContext,
-    build_initial_turn_instruction,
+    build_initial_greeting,
     build_tutor_instructions,
     infer_level_hint,
 )
@@ -128,12 +128,20 @@ def test_level_hint_uses_preserved_category_hierarchy() -> None:
     assert infer_level_hint(cards) == "大约按HSK 3级的句子长度和语法难度说话"
 
 
-def test_initial_turn_is_short_mandarin_instruction() -> None:
-    instruction = build_initial_turn_instruction(_context())
+def test_initial_greeting_starts_immediately_without_exposing_target_words() -> None:
+    greeting = build_initial_greeting(_context(topic="用“地图、迷路”聊聊你的经历"))
 
-    assert "只用简体中文" in instruction
-    assert "第一次去北京" in instruction
-    assert "只问一个" in instruction
+    assert greeting == "你好！我们开始吧。你最近有什么想分享的经历吗？"
+    assert "地图" not in greeting
+    assert "迷路" not in greeting
+
+
+def test_initial_story_greeting_asks_one_easy_question() -> None:
+    greeting = build_initial_greeting(_context(topic="一起编一个小故事"))
+
+    assert greeting == (
+        "你好！我们开始吧。我们一起编个小故事。你想让故事发生在哪里？"
+    )
 
 
 def test_assessment_accepts_separate_bounded_dimensions() -> None:
