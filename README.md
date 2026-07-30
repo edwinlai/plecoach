@@ -266,7 +266,9 @@ See [workflow.md](workflow.md) for the AI-assisted development process and [PROM
 
 ## Video walkthrough
 
-Before sharing the repository, record a short walkthrough that shows:
+[Watch the Plecoach video walkthrough](https://youtu.be/FqtPxbBolBI).
+
+The recording shows:
 
 - `docker compose up --build` reaching a usable web app
 - the one-click sample deck import
@@ -275,4 +277,4 @@ Before sharing the repository, record a short walkthrough that shows:
 - one interrupted turn, the live transcript, and an updated word state
 - the reset confirmation deleting the current learner and returning to an empty import screen
 
-Add the final video link to the submission message or immediately below this checklist.
+The linked walkthrough is the final submission recording.
