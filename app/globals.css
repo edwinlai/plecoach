@@ -628,6 +628,14 @@ input:focus-visible {
   letter-spacing: -0.035em;
 }
 
+.folder-panel .eyebrow {
+  font-size: 15px;
+}
+
+.folder-panel .panel-heading h2 {
+  font-size: 23px;
+}
+
 .panel-heading > svg {
   color: var(--jade);
 }
@@ -669,13 +677,13 @@ input:focus-visible {
 }
 
 .all-folders-button strong {
-  font-size: 12px;
+  font-size: 16px;
 }
 
 .all-folders-button small {
   margin-top: 2px;
   color: var(--ink-soft);
-  font-size: 9px;
+  font-size: 13px;
 }
 
 .category-tree {
@@ -753,7 +761,7 @@ input:focus-visible {
 
 .category-name {
   overflow: hidden;
-  font-size: 11px;
+  font-size: 15px;
   font-weight: 570;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -762,13 +770,13 @@ input:focus-visible {
 .category-count {
   color: #828b86;
   font-family: var(--font-mono);
-  font-size: 9px;
+  font-size: 13px;
 }
 
 .empty-tree {
   padding: 18px 10px;
   color: var(--ink-soft);
-  font-size: 11px;
+  font-size: 15px;
 }
 
 .practice-panel {
