@@ -33,6 +33,7 @@ from .config import (
     livekit_tts_config,
     load_livekit_config,
 )
+from .schemas import TutorLanguageProfile
 from .store import RedisStore
 from .tutor import (
     Assistance,
@@ -55,6 +56,25 @@ ASSESSMENT_TOPIC = "plecoach.card-assessment"
 class DispatchMetadata:
     session_id: str
     learner_id: str
+
+
+def _tts_extra_kwargs(
+    profile: TutorLanguageProfile,
+    model: str,
+) -> dict[str, Any]:
+    """Slow supported Cartesia voices for beginner support-language profiles."""
+
+    if profile.support_hsk_level <= 2 and model.casefold().startswith("cartesia/"):
+        return {"speed": "slow"}
+    return {}
+
+
+def _endpointing_options(profile: TutorLanguageProfile) -> dict[str, float]:
+    """Give beginner learners a little longer to formulate a spoken response."""
+
+    if profile.support_hsk_level <= 2:
+        return {"min_delay": 0.9, "max_delay": 4.0}
+    return {"min_delay": 0.5, "max_delay": 3.0}
 
 
 def parse_dispatch_metadata(raw: str | None) -> DispatchMetadata:
@@ -295,6 +315,10 @@ async def plecoach_session(ctx: JobContext) -> None:
         publish_event=publish_event,
     )
     tts_config = livekit_tts_config()
+    tts_extra_kwargs = _tts_extra_kwargs(
+        tutor_context.language_profile,
+        tts_config.model,
+    )
 
     async def cleanup() -> None:
         await runtime.drain_writes()
@@ -323,9 +347,11 @@ async def plecoach_session(ctx: JobContext) -> None:
             model=tts_config.model,
             voice=tts_config.voice,
             language=tts_config.language,
+            extra_kwargs=tts_extra_kwargs,
         ),
         turn_handling=TurnHandlingOptions(
             turn_detection=inference.TurnDetector(),
+            endpointing=_endpointing_options(tutor_context.language_profile),
         ),
         use_tts_aligned_transcript=True,
         max_tool_steps=3,

@@ -6,7 +6,17 @@ from datetime import datetime, timezone
 from enum import Enum
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import AliasChoices, BaseModel, ConfigDict, Field, model_validator
+
+TUTOR_SPEECH_LIMITS: dict[int, tuple[int, int, int]] = {
+    1: (2, 10, 1),
+    2: (2, 14, 2),
+    3: (2, 18, 2),
+    4: (2, 22, 2),
+    5: (3, 28, 2),
+    6: (3, 34, 3),
+    7: (3, 40, 3),
+}
 
 
 def utc_now() -> datetime:
@@ -118,6 +128,50 @@ class MasterySummary(BaseModel):
     fluent: int = 0
 
 
+class TutorLanguageProfile(BaseModel):
+    """A conservative speaking ceiling inferred from the selected deck scope.
+
+    Target flashcards may sit above the learner's comfortable conversational
+    level. The separate support level keeps every other word and grammar pattern
+    easier, so the target vocabulary is the only intended challenge.
+    """
+
+    model_config = ConfigDict(extra="ignore")
+
+    scope_hsk_level: int = Field(
+        default=2,
+        ge=1,
+        le=7,
+        validation_alias=AliasChoices("scope_hsk_level", "target_hsk_level"),
+    )
+    support_hsk_level: int = Field(default=1, ge=1, le=7)
+    confidence: Literal["low", "medium", "high"] = "low"
+    labeled_card_count: int = Field(default=0, ge=0)
+    scoped_card_count: int = Field(default=0, ge=0)
+    support_words: list[str] = Field(default_factory=list, max_length=40)
+    max_sentences: int = Field(default=2, ge=1, le=4)
+    max_hanzi_per_sentence: int = Field(default=10, ge=6, le=50)
+    max_clauses: int = Field(default=1, ge=1, le=4)
+
+    @model_validator(mode="after")
+    def validate_coherent_profile(self) -> "TutorLanguageProfile":
+        if self.support_hsk_level > self.scope_hsk_level:
+            raise ValueError("support_hsk_level cannot exceed scope_hsk_level")
+        if self.labeled_card_count > self.scoped_card_count:
+            raise ValueError("labeled_card_count cannot exceed scoped_card_count")
+        expected_limits = TUTOR_SPEECH_LIMITS[self.support_hsk_level]
+        actual_limits = (
+            self.max_sentences,
+            self.max_hanzi_per_sentence,
+            self.max_clauses,
+        )
+        if actual_limits != expected_limits:
+            raise ValueError(
+                "speech limits must match the support_hsk_level profile"
+            )
+        return self
+
+
 class DeckMetadata(BaseModel):
     deck_id: str
     learner_id: str
@@ -200,6 +254,9 @@ class SessionRecord(BaseModel):
     learner_id: str
     room_name: str
     selected_category_paths: list[str]
+    language_profile: TutorLanguageProfile = Field(
+        default_factory=TutorLanguageProfile
+    )
     target_cards: list[TargetCard]
     topic_suggestions: list[str]
     topic: str | None = None

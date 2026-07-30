@@ -9,16 +9,18 @@ from __future__ import annotations
 
 import math
 import re
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 from typing import Any, Literal, Mapping, Protocol, Sequence, runtime_checkable
+
+from .language_profile import (
+    build_language_profile_rules,
+    hsk_level_from_category_paths,
+)
+from .schemas import TutorLanguageProfile
 
 Assistance = Literal["none", "hint", "revealed"]
 
 _HAN_RE = re.compile(r"[\u3400-\u4dbf\u4e00-\u9fff]")
-_HSK_LEVEL_RE = re.compile(
-    r"(?:HSK(?:\s*3\.0)?[/\s_-]*)?(?:Level|级别|等级|级)\s*([1-9])",
-    re.IGNORECASE,
-)
 _CONTROL_RE = re.compile(r"[\x00-\x1f\x7f]+")
 
 
@@ -172,6 +174,9 @@ class TutorContext:
     session_id: str
     learner_id: str
     target_cards: tuple[TargetCard, ...]
+    language_profile: TutorLanguageProfile = field(
+        default_factory=TutorLanguageProfile
+    )
     selected_category_paths: tuple[str, ...] = ()
     topic: str = ""
 
@@ -190,6 +195,12 @@ class TutorContext:
         cards = tuple(TargetCard.from_value(card) for card in raw_targets or ())
         if not cards:
             raise ValueError("The tutoring session has no target cards")
+        profile_raw = raw.get("language_profile")
+        language_profile = (
+            TutorLanguageProfile.model_validate(profile_raw)
+            if profile_raw is not None
+            else TutorLanguageProfile()
+        )
 
         return cls(
             session_id=_clean(
@@ -199,6 +210,7 @@ class TutorContext:
                 _first(raw, "learner_id", default=learner_id), limit=100
             ),
             target_cards=cards,
+            language_profile=language_profile,
             selected_category_paths=_string_tuple(
                 _first(
                     raw,
@@ -214,19 +226,22 @@ class TutorContext:
 
 
 def infer_level_hint(cards: Sequence[TargetCard]) -> str:
-    """Infer a coarse speaking-level hint from preserved Pleco category paths."""
+    """Compatibility helper for callers without a persisted session profile."""
 
-    levels: list[int] = []
-    for card in cards:
-        for path in card.category_paths:
-            match = _HSK_LEVEL_RE.search(path)
-            if match:
-                levels.append(int(match.group(1)))
+    levels = [
+        level
+        for card in cards
+        if (level := hsk_level_from_category_paths(card.category_paths)) is not None
+    ]
     if not levels:
-        return "根据这些词卡的难度，用短句和常用词判断学生的水平"
+        return "没有可靠等级标签；先用HSK 1级左右的支持语言，再根据学生回答调整"
     levels.sort()
-    median = levels[len(levels) // 2]
-    return f"大约按HSK {median}级的句子长度和语法难度说话"
+    target_level = levels[(len(levels) - 1) // 2]
+    support_level = max(1, target_level - 1)
+    return (
+        f"目标词大约为HSK {target_level}级，"
+        f"除目标词外按HSK {support_level}级或更简单说话"
+    )
 
 
 def _soft_signal(card: TargetCard) -> str:
@@ -255,7 +270,7 @@ def build_tutor_instructions(context: TutorContext) -> str:
     )
     categories = "、".join(context.selected_category_paths) or "学生所选词卡范围"
     topic = context.topic or "围绕目标词自然展开的日常话题"
-    level_hint = infer_level_hint(context.target_cards)
+    language_rules = build_language_profile_rules(context.language_profile)
 
     return f"""
 你是Plecoach，一位耐心、自然、鼓励学生开口的普通话老师。
@@ -267,9 +282,11 @@ def build_tutor_instructions(context: TutorContext) -> str:
 4. 不评价声调、口音或发音；本次只判断理解和在语境中正确使用词语的能力。
 5. 说话简短自然，一次只问一个问题，不要使用项目符号、分数或技术术语对学生说话。
 
+{language_rules}
+
 教学方式：
 - 当前范围是“{categories}”，当前话题是“{topic}”。
-- {level_hint}。优先使用目标词卡及难度相近的常用词，避免突然使用明显更难的表达。
+- 严格遵守上面的语言难度规则；自然不等于复杂，宁可说得更短、更具体。
 - 词义参考只用于确认目标词在这副词卡中的含义。它可能不是中文，绝不能直接念出、翻译或展示给学生；必须改用简单中文解释。
 - 每次自然带出一两个目标词，不要像背词表一样逐个提问，也不要透露你在测试哪些词。
 - 先让学生从上下文理解并自己表达。卡住时依次提供：更简单的问题、语境提示、简单中文解释、示例。
@@ -294,13 +311,26 @@ def build_tutor_instructions(context: TutorContext) -> str:
 
 
 def build_initial_greeting(context: TutorContext) -> str:
-    """Return a short deterministic opening that does not wait on the LLM."""
+    """Return an immediate opening within the inferred support-language ceiling."""
 
+    support_level = context.language_profile.support_hsk_level
+    if support_level == 1 and "小故事" in context.topic:
+        return "你好。故事在家还是学校？"
+    if support_level == 1 and "经历" in context.topic:
+        return "你好。你今天去了哪里？"
+    if support_level == 1:
+        return "你好。你今天好吗？"
+    if support_level == 2 and "小故事" in context.topic:
+        return "你好！故事在哪里开始？"
+    if support_level == 2 and "经历" in context.topic:
+        return "你好！你最近做了什么？"
+    if support_level == 2:
+        return "你好！你今天想聊什么？"
     if "小故事" in context.topic:
-        return "你好！我们开始吧。我们一起编个小故事。你想让故事发生在哪里？"
+        return "你好！我们一起编个小故事，故事发生在哪里？"
     if "经历" in context.topic:
-        return "你好！我们开始吧。你最近有什么想分享的经历吗？"
-    return "你好！我们开始吧。你今天想先聊什么？"
+        return "你好！你最近有什么想分享的经历吗？"
+    return "你好！你今天想先聊什么？"
 
 
 def _validated_score(name: str, value: float | None) -> float | None:

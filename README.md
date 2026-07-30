@@ -91,6 +91,8 @@ Pleco's score, difficulty, correct/incorrect counts, and review history are impo
 
 Planning history is stored separately from mastery. Recently proposed focus words receive a bounded cooldown so consecutive plans rotate through equally eligible cards; previewing or closing a plan never counts as learning evidence, and genuinely due weak words can still recur.
 
+At session planning time, Plecoach also builds a conservative language profile from **every card in the selected folder**, not just the six difficult words chosen for assessment. Preserved HSK category assignments are de-duplicated per card and combined with a lower-median estimate so a few advanced words cannot raise the whole conversation. The target words may be challenging; surrounding vocabulary and grammar are kept one HSK band easier. Missing labels default to simple everyday Mandarin and adapt from the learner's actual responses rather than assuming advanced proficiency.
+
 Plecoach starts conversational mastery as unassessed and gathers two kinds of evidence:
 
 1. **Comprehension:** Did the learner respond in a way that shows they understood the word in context?
@@ -110,7 +112,9 @@ The agent also uses LiveKit's multilingual turn detector, interruption handling,
 
 ### Conversation, not disguised flashcards
 
-The tutor receives a small target set and a deck-derived estimate of the learner's level. It is asked to surface words naturally rather than march through a quiz. This is more engaging and tests transferable knowledge, but it makes coverage less deterministic. The session can end naturally even if every target was not forced into the dialogue.
+The tutor receives a small target set plus a language profile derived from the full selected folder. That profile gives Gemma concrete ceilings for sentences, Hanzi per sentence, clauses, grammar, and question count, plus a bounded set of easier deck words to prefer. Beginner profiles also slow the supported Cartesia voice and allow a longer pause before LiveKit decides the learner has finished speaking. After signs of confusion, the tutor immediately switches to very short concrete Mandarin and a simple either/or question; it only adds complexity after two clear, independent responses. The deterministic opening follows the same profile.
+
+The tutor is asked to surface words naturally rather than march through a quiz. This is more engaging and tests transferable knowledge, but it makes coverage less deterministic. Numeric prompt limits are a strong behavioral constraint rather than a formal guarantee from the generative model, so they are backed by deterministic profile tests and should eventually be monitored against recorded tutor turns.
 
 The planning screen shows an English gloss for each Mandarin topic and the exported Pleco definition beside each target word. This makes session setup legible without weakening the immersion rule: once the learner joins, every tutor utterance and explanation remains in Mandarin.
 
@@ -145,7 +149,7 @@ Redis stores four conceptual record groups:
 
 - **Deck:** import metadata, normalized cards, and the category tree.
 - **Learner mastery:** per-card comprehension/usage evidence and scheduling fields.
-- **Session:** selected categories, deduplicated targets, room identity, status, and timestamps.
+- **Session:** selected categories, the immutable language profile, deduplicated targets, room identity, status, and timestamps.
 - **Conversation:** up to 200 ordered transcript turns plus assessment evidence inside the session record.
 
 The current implementation uses `plecoach:learner:{learner_id}:deck` for the active deck and `plecoach:session:{session_id}` for a planned or active conversation. Session records expire after seven days by default; `SESSION_TTL_SECONDS` can change that. This makes API and agent workers horizontally replaceable without losing an active conversation.

@@ -11,8 +11,10 @@ from typing import Literal, Sequence
 
 from pydantic import BaseModel, Field
 
+from .language_profile import infer_tutor_language_profile
 from .mastery import (
     build_category_tree,
+    card_matches_categories,
     select_target_cards,
     suggest_topics,
     summarize_mastery,
@@ -239,6 +241,11 @@ class Store(ABC):
         planning_state = await self._load_planning_state(learner_id)
         if planning_state is None:
             planning_state = PlanningState(learner_id=learner_id)
+        scoped_cards = [
+            card
+            for card in deck.cards
+            if card.active and card_matches_categories(card, normalized_paths)
+        ]
         targets = select_target_cards(
             deck.cards,
             normalized_paths,
@@ -258,6 +265,10 @@ class Store(ABC):
             learner_id=learner_id,
             room_name="plecoach-" + session_id.removeprefix("session_"),
             selected_category_paths=normalized_paths,
+            language_profile=infer_tutor_language_profile(
+                scoped_cards,
+                normalized_paths,
+            ),
             target_cards=[TargetCard.from_card(card) for card in targets],
             topic_suggestions=suggest_topics(targets, normalized_paths),
             created_at=now,
