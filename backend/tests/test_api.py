@@ -116,3 +116,36 @@ def test_placeholder_livekit_config_is_unhealthy_and_cannot_connect(
         assert "LIVEKIT_API_SECRET" in detail
         assert "wss://example.livekit.cloud" not in detail
         assert "apisecret" not in detail
+
+
+def test_session_planning_errors_map_to_http_statuses() -> None:
+    application = api.create_app(MemoryStore())
+
+    with TestClient(application) as client:
+        missing_deck = client.post(
+            "/api/sessions",
+            json={
+                "learner_id": "browser-user",
+                "category_paths": ["Food"],
+                "target_count": 6,
+            },
+        )
+        assert missing_deck.status_code == 404
+
+        imported = client.post(
+            "/api/decks/import",
+            data={"learner_id": "browser-user"},
+            files={"file": ("sample.xml", XML, "application/xml")},
+        )
+        assert imported.status_code == 200
+
+        empty_selection = client.post(
+            "/api/sessions",
+            json={
+                "learner_id": "browser-user",
+                "category_paths": ["Travel"],
+                "target_count": 6,
+            },
+        )
+        assert empty_selection.status_code == 422
+        assert "do not contain any active flashcards" in empty_selection.json()["detail"]

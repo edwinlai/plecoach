@@ -1,4 +1,4 @@
-"""Redis-backed persistence for decks, sessions, transcripts, and mastery."""
+"""State access and persistence shared by the API and LiveKit agent."""
 
 from __future__ import annotations
 
@@ -9,14 +9,10 @@ import uuid
 from abc import ABC, abstractmethod
 from typing import Literal, Sequence
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
-from .language_profile import infer_tutor_language_profile
 from .mastery import (
     build_category_tree,
-    card_matches_categories,
-    select_target_cards,
-    suggest_topics,
     summarize_mastery,
     update_mastery,
 )
@@ -27,9 +23,9 @@ from .schemas import (
     ImportResponse,
     Mastery,
     ParsedPlecoCard,
+    PlanningState,
     SessionRecord,
     SessionState,
-    TargetCard,
     TranscriptTurn,
     utc_now,
 )
@@ -53,21 +49,9 @@ class CardNotFoundError(StoreError):
     pass
 
 
-class InvalidSelectionError(StoreError):
-    pass
-
-
 class StoredDeck(BaseModel):
     metadata: DeckMetadata
     cards: list[Card]
-
-
-class PlanningState(BaseModel):
-    """Target exposure history kept separate from conversational mastery."""
-
-    learner_id: str
-    recent_target_card_ids: list[str] = Field(default_factory=list)
-    target_selection_counts: dict[str, int] = Field(default_factory=dict)
 
 
 def _copy_model(model: BaseModel):
@@ -92,7 +76,7 @@ def _validate_learner_id(learner_id: str) -> None:
 
 
 class Store(ABC):
-    """Storage contract shared by the API and the LiveKit agent."""
+    """Application state boundary; lesson construction lives in SessionPlanner."""
 
     @abstractmethod
     async def ping(self) -> bool: ...
@@ -119,6 +103,11 @@ class Store(ABC):
 
     @abstractmethod
     async def _save_session(self, session: SessionRecord) -> None: ...
+
+    @abstractmethod
+    async def _save_plan(
+        self, planning_state: PlanningState, session: SessionRecord
+    ) -> None: ...
 
     async def import_cards(
         self,
@@ -224,71 +213,19 @@ class Store(ABC):
             cards=active_cards,
         )
 
-    async def create_session(
-        self,
-        learner_id: str,
-        category_paths: Sequence[str],
-        target_count: int = 6,
-    ) -> SessionRecord:
+    async def get_planning_state(
+        self, learner_id: str
+    ) -> PlanningState | None:
         _validate_learner_id(learner_id)
-        deck = await self._load_deck(learner_id)
-        if deck is None:
-            raise DeckNotFoundError(f"No deck exists for learner '{learner_id}'.")
+        return await self._load_planning_state(learner_id)
 
-        normalized_paths = list(
-            dict.fromkeys(path.strip().strip("/") for path in category_paths if path.strip("/"))
-        )
-        planning_state = await self._load_planning_state(learner_id)
-        if planning_state is None:
-            planning_state = PlanningState(learner_id=learner_id)
-        scoped_cards = [
-            card
-            for card in deck.cards
-            if card.active and card_matches_categories(card, normalized_paths)
-        ]
-        targets = select_target_cards(
-            deck.cards,
-            normalized_paths,
-            target_count,
-            recent_target_card_ids=planning_state.recent_target_card_ids,
-            target_selection_counts=planning_state.target_selection_counts,
-        )
-        if not targets:
-            raise InvalidSelectionError(
-                "The selected categories do not contain any active flashcards."
-            )
-
-        session_id = "session_" + uuid.uuid4().hex[:16]
-        now = utc_now()
-        session = SessionRecord(
-            session_id=session_id,
-            learner_id=learner_id,
-            room_name="plecoach-" + session_id.removeprefix("session_"),
-            selected_category_paths=normalized_paths,
-            language_profile=infer_tutor_language_profile(
-                scoped_cards,
-                normalized_paths,
-            ),
-            target_cards=[TargetCard.from_card(card) for card in targets],
-            topic_suggestions=suggest_topics(targets, normalized_paths),
-            created_at=now,
-            updated_at=now,
-        )
-        target_ids = [card.card_id for card in targets]
-        selection_counts = dict(planning_state.target_selection_counts)
-        for card_id in target_ids:
-            selection_counts[card_id] = selection_counts.get(card_id, 0) + 1
-        planning_state = planning_state.model_copy(
-            update={
-                "recent_target_card_ids": target_ids,
-                "target_selection_counts": selection_counts,
-            }
-        )
-        # Planning history has its own key, so it cannot overwrite an agent's
-        # concurrent mastery update to the durable deck.
-        await self._save_planning_state(planning_state)
-        await self._save_session(session)
-        return session
+    async def save_plan(
+        self, planning_state: PlanningState, session: SessionRecord
+    ) -> None:
+        _validate_learner_id(planning_state.learner_id)
+        if session.learner_id != planning_state.learner_id:
+            raise ValueError("Planning state and session must belong to one learner.")
+        await self._save_plan(planning_state, session)
 
     async def get_session(self, session_id: str) -> SessionRecord:
         session = await self._load_session(session_id)
@@ -468,6 +405,21 @@ class RedisStore(Store):
             ex=self.session_ttl_seconds,
         )
 
+    async def _save_plan(
+        self, planning_state: PlanningState, session: SessionRecord
+    ) -> None:
+        async with self._redis.pipeline(transaction=True) as transaction:
+            transaction.set(
+                self._planning_key(planning_state.learner_id),
+                planning_state.model_dump_json(),
+            )
+            transaction.set(
+                self._session_key(session.session_id),
+                session.model_dump_json(),
+                ex=self.session_ttl_seconds,
+            )
+            await transaction.execute()
+
 
 class MemoryStore(Store):
     """Explicit test double; never selected by production configuration."""
@@ -511,4 +463,13 @@ class MemoryStore(Store):
 
     async def _save_session(self, session: SessionRecord) -> None:
         async with self._lock:
+            self._sessions[session.session_id] = _copy_model(session)
+
+    async def _save_plan(
+        self, planning_state: PlanningState, session: SessionRecord
+    ) -> None:
+        async with self._lock:
+            self._planning_states[planning_state.learner_id] = _copy_model(
+                planning_state
+            )
             self._sessions[session.session_id] = _copy_model(session)

@@ -29,6 +29,7 @@ from .config import (
     load_livekit_config,
 )
 from .pleco_parser import MAX_XML_BYTES, PlecoParseError, parse_pleco_xml
+from .session_planner import InvalidSelectionError, SessionPlanner
 from .schemas import (
     ConnectionDetails,
     ConnectionRequest,
@@ -41,7 +42,6 @@ from .schemas import (
 )
 from .store import (
     DeckNotFoundError,
-    InvalidSelectionError,
     RedisStore,
     SessionNotFoundError,
     Store,
@@ -55,6 +55,13 @@ def get_store(request: Request) -> Store:
 
 
 StoreDependency = Annotated[Store, Depends(get_store)]
+
+
+def get_session_planner(request: Request) -> SessionPlanner:
+    return request.app.state.session_planner
+
+
+SessionPlannerDependency = Annotated[SessionPlanner, Depends(get_session_planner)]
 
 
 def _cors_origins() -> list[str]:
@@ -131,6 +138,7 @@ def create_app(store: Store | None = None) -> FastAPI:
         # A failed Redis connection should fail production startup: there is no
         # silent in-process persistence fallback.
         await application.state.store.ping()
+        application.state.session_planner = SessionPlanner(application.state.store)
         try:
             yield
         finally:
@@ -140,7 +148,7 @@ def create_app(store: Store | None = None) -> FastAPI:
     application = FastAPI(
         title="Plecoach API",
         version="0.1.0",
-        description="Pleco deck import and adaptive LiveKit tutoring sessions.",
+        description="Pleco deck import, lesson planning, and LiveKit session access.",
         lifespan=lifespan,
     )
     application.add_middleware(
@@ -205,10 +213,10 @@ def create_app(store: Store | None = None) -> FastAPI:
 
     @application.post("/api/sessions", response_model=SessionRecord, status_code=201)
     async def create_session(
-        request: SessionCreateRequest, state: StoreDependency
+        request: SessionCreateRequest, planner: SessionPlannerDependency
     ) -> SessionRecord:
         try:
-            return await state.create_session(
+            return await planner.create_session(
                 learner_id=request.learner_id,
                 category_paths=request.category_paths,
                 target_count=request.target_count,

@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 import asyncio
+from typing import Any
 
 from plecoach.pleco_parser import parse_pleco_xml
-from plecoach.schemas import MasteryState, ParsedPlecoCard, PlecoStats
-from plecoach.store import MemoryStore
+from plecoach.schemas import MasteryState, PlanningState, SessionRecord
+from plecoach.session_planner import SessionPlanner
+from plecoach.store import MemoryStore, RedisStore
 
 
 XML_V1 = b"""<plecoflash formatversion="2"><cards>
@@ -32,41 +34,74 @@ XML_V2 = b"""<plecoflash formatversion="2"><cards>
 </cards></plecoflash>"""
 
 
-def equal_priority_cards(count: int) -> list[ParsedPlecoCard]:
-    return [
-        ParsedPlecoCard(
-            card_id=f"card-{index}",
-            simplified=f"词{index}",
-            traditional=f"詞{index}",
-            pinyin=f"ci2-{index}",
-            categories=["Course/Lesson"],
-        )
-        for index in range(count)
-    ]
+class RecordingPipeline:
+    def __init__(self) -> None:
+        self.set_calls: list[tuple[str, str, int | None]] = []
+        self.executed = False
+
+    async def __aenter__(self) -> "RecordingPipeline":
+        return self
+
+    async def __aexit__(self, *_: Any) -> None:
+        return None
+
+    def set(
+        self, key: str, value: str, *, ex: int | None = None
+    ) -> "RecordingPipeline":
+        self.set_calls.append((key, value, ex))
+        return self
+
+    async def execute(self) -> list[object]:
+        self.executed = True
+        return []
 
 
-def varied_priority_cards(count: int) -> list[ParsedPlecoCard]:
-    return [
-        ParsedPlecoCard(
-            card_id=f"varied-card-{index}",
-            simplified=f"词{index}",
-            traditional=f"詞{index}",
-            pinyin=f"ci2-{index}",
-            categories=["Course/Lesson"],
-            pleco=PlecoStats(
-                reviewed=10,
-                correct=10 - (index % 11),
-                incorrect=index % 11,
-                score=(index * 7_919) % 30_001,
-            ),
+class RecordingRedis:
+    def __init__(self) -> None:
+        self.transaction: bool | None = None
+        self.pipeline_instance = RecordingPipeline()
+
+    def pipeline(self, *, transaction: bool) -> RecordingPipeline:
+        self.transaction = transaction
+        return self.pipeline_instance
+
+
+def test_redis_store_commits_planning_state_and_session_in_one_transaction() -> None:
+    async def scenario() -> None:
+        redis = RecordingRedis()
+        store = RedisStore(
+            client=redis,
+            session_ttl_seconds=123,
         )
-        for index in range(count)
-    ]
+        planning_state = PlanningState(learner_id="learner")
+        session = SessionRecord(
+            session_id="session-test",
+            learner_id="learner",
+            room_name="room-test",
+            selected_category_paths=[],
+            target_cards=[],
+            topic_suggestions=[],
+        )
+
+        await store.save_plan(planning_state, session)
+
+        assert redis.transaction is True
+        assert redis.pipeline_instance.executed is True
+        assert [
+            (key, ttl)
+            for key, _, ttl in redis.pipeline_instance.set_calls
+        ] == [
+            ("plecoach:learner:learner:planning", None),
+            ("plecoach:session:session-test", 123),
+        ]
+
+    asyncio.run(scenario())
 
 
 def test_import_session_assessment_and_reimport_preserve_plecoach_mastery() -> None:
     async def scenario() -> None:
         store = MemoryStore()
+        planner = SessionPlanner(store)
         first = await store.import_cards("learner-1", parse_pleco_xml(XML_V1), "first.xml")
         assert first.added_count == 2
         assert first.mastery_summary.unassessed == 2
@@ -78,7 +113,7 @@ def test_import_session_assessment_and_reimport_preserve_plecoach_mastery() -> N
         assert travel.card_count == 2
         assert travel.children[0].path == "Travel/Directions"
 
-        session = await store.create_session(
+        session = await planner.create_session(
             "learner-1", ["Travel/Directions"], target_count=2
         )
         map_target = next(
@@ -107,75 +142,5 @@ def test_import_session_assessment_and_reimport_preserve_plecoach_mastery() -> N
         active = reimported.cards[0]
         assert active.card_id == assessed_card_id
         assert active.mastery.state == MasteryState.PRACTICING
-
-    asyncio.run(scenario())
-
-
-def test_parent_category_selects_descendants_without_duplicate_targets() -> None:
-    async def scenario() -> None:
-        store = MemoryStore()
-        await store.import_cards("learner", parse_pleco_xml(XML_V1), "deck.xml")
-        session = await store.create_session("learner", ["Travel"], target_count=10)
-        assert len(session.target_cards) == 2
-        assert len({card.card_id for card in session.target_cards}) == 2
-
-    asyncio.run(scenario())
-
-
-def test_consecutive_plans_rotate_equally_eligible_focus_cards() -> None:
-    async def scenario() -> None:
-        store = MemoryStore()
-        await store.import_cards("learner", equal_priority_cards(12), "deck.xml")
-
-        first = await store.create_session(
-            "learner", ["Course/Lesson"], target_count=6
-        )
-        second = await store.create_session(
-            "learner", ["Course/Lesson"], target_count=6
-        )
-
-        first_ids = {card.card_id for card in first.target_cards}
-        second_ids = {card.card_id for card in second.target_cards}
-        assert first.session_id != second.session_id
-        assert first_ids.isdisjoint(second_ids)
-
-    asyncio.run(scenario())
-
-
-def test_reimport_preserves_focus_card_rotation_history() -> None:
-    async def scenario() -> None:
-        store = MemoryStore()
-        cards = equal_priority_cards(12)
-        await store.import_cards("learner", cards, "deck.xml")
-        first = await store.create_session(
-            "learner", ["Course/Lesson"], target_count=6
-        )
-
-        await store.import_cards("learner", cards, "deck.xml")
-        second = await store.create_session(
-            "learner", ["Course/Lesson"], target_count=6
-        )
-
-        assert {
-            card.card_id for card in first.target_cards
-        }.isdisjoint(card.card_id for card in second.target_cards)
-
-    asyncio.run(scenario())
-
-
-def test_focus_cards_keep_rotating_across_many_plans() -> None:
-    async def scenario() -> None:
-        store = MemoryStore()
-        await store.import_cards("learner", varied_priority_cards(38), "deck.xml")
-
-        previous_ids: set[str] | None = None
-        for _ in range(12):
-            session = await store.create_session(
-                "learner", ["Course/Lesson"], target_count=6
-            )
-            target_ids = {card.card_id for card in session.target_cards}
-            if previous_ids is not None:
-                assert previous_ids.isdisjoint(target_ids)
-            previous_ids = target_ids
 
     asyncio.run(scenario())

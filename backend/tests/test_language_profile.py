@@ -11,6 +11,7 @@ from plecoach.agent import (
     _tts_extra_kwargs,
 )
 from plecoach.language_profile import infer_tutor_language_profile
+from plecoach.session_planner import SessionPlanner
 from plecoach.schemas import (
     Card,
     Mastery,
@@ -414,9 +415,10 @@ def test_hsk_one_story_opening_obeys_the_same_clause_limit() -> None:
     assert "；" not in greeting
 
 
-def test_store_profiles_the_full_selected_scope_not_only_six_targets() -> None:
+def test_session_planner_profiles_the_full_selected_scope_not_only_six_targets() -> None:
     async def scenario() -> None:
         store = MemoryStore()
+        planner = SessionPlanner(store)
         beginner_cards = [
             ParsedPlecoCard(
                 card_id=f"hsk2-{index}",
@@ -455,7 +457,7 @@ def test_store_profiles_the_full_selected_scope_not_only_six_targets() -> None:
             "profile.xml",
         )
 
-        session = await store.create_session(
+        session = await planner.create_session(
             "profile-learner",
             ["Course/Scope"],
             target_count=6,

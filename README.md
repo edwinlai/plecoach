@@ -56,34 +56,70 @@ Choose a leaf for a focused conversation or a parent branch for a wider one. Car
 
 ## Architecture
 
-```text
-┌──────────────────┐             ┌───────────────────┐
-│ Browser frontend │──HTTP──────▶│ API / session svc │
-│ upload + session │             │ XML, deck, tokens │
-└────────┬─────────┘             └─────────┬─────────┘
-         │ WebRTC                            │
-         ▼                                   ▼
-┌──────────────────┐              ┌───────────────────┐
-│  LiveKit Cloud   │              │       Redis       │
-│ rooms + media    │              │ deck + sessions   │
-└────────┬─────────┘              │ transcript + skill│
-         │                        └─────────▲─────────┘
-         ▼                                  │
-┌───────────────────────────────────────────┴─────────┐
-│ LiveKit agent                                      │
-│ Nova-3 STT → Gemma 4 31B tutor → Sonic-3 TTS      │
-│ conversation orchestration + fluency observations  │
-└─────────────────────────────────────────────────────┘
+```mermaid
+flowchart LR
+    browser["Browser<br/>React session UI"]
+
+    subgraph web["web container"]
+        webserver["Vinext server<br/>serves the frontend"]
+    end
+
+    subgraph api["api container — Uvicorn / FastAPI"]
+        routes["api.py<br/>HTTP validation, tokens, dispatch"]
+        parser["pleco_parser.py<br/>bounded XML normalization"]
+        planner["session_planner.py<br/>SessionPlanner"]
+        rules["mastery.py + language_profile.py<br/>pure planning rules"]
+        store["store.py<br/>Store / RedisStore"]
+
+        routes --> parser
+        routes --> planner
+        routes --> store
+        parser --> store
+        planner --> rules
+        planner --> store
+    end
+
+    subgraph agent["agent container — LiveKit worker"]
+        runtime["agent.py<br/>room and model orchestration"]
+        tutor["tutor.py<br/>prompt and assessment rules"]
+        adapter["RedisTutorStoreAdapter<br/>wraps RedisStore"]
+
+        runtime --> tutor
+        runtime --> adapter
+    end
+
+    redis[("redis container<br/>JSON state + AOF volume")]
+    livekit["LiveKit Cloud<br/>rooms, WebRTC, agent dispatch"]
+    inference["LiveKit Inference<br/>Nova-3 STT → Gemma 4 31B → Sonic-3 TTS"]
+
+    browser -->|"loads app"| webserver
+    browser -->|"HTTP / JSON"| routes
+    browser <-->|"WebRTC audio + data"| livekit
+    routes -->|"participant token + agent dispatch"| livekit
+    runtime <-->|"room participant"| livekit
+    runtime --> inference
+    store <--> redis
+    adapter <--> redis
 ```
 
-Docker Compose runs the web frontend, HTTP API, LiveKit agent worker, and Redis as separate services. LiveKit Cloud carries low-latency audio, room state, and agent participation; Redis is the backing state store shared by the stateless API and agent.
+Docker Compose runs four processes: the web server, FastAPI process, LiveKit agent worker, and Redis server. `SessionPlanner` and the parser are modules inside the FastAPI process, not additional containers. The shared `store.py` module supplies FastAPI's `RedisStore`; each dispatched agent job creates another behind `RedisTutorStoreAdapter`. `tutor.py` is imported by the agent worker and does not run separately. LiveKit Cloud carries low-latency media, room state, and agent dispatch; the STT, LLM, and TTS model calls use LiveKit Inference. The agent orchestration itself runs in this repository's `agent` container.
 
 The boundaries are intentional:
 
-- **Session management** imports decks, resolves category selection, chooses targets, and issues short-lived room access.
-- **Conversation handling** owns transcript events, hints, target exposure, and fluency observations.
-- **Voice/AI** is isolated behind the LiveKit agent and configurable model IDs.
-- **State** is accessed through a small Redis repository layer rather than being embedded in route or prompt code.
+- **HTTP boundary (`api.py`)** validates requests, maps application errors to status codes, and issues short-lived LiveKit room access. Routes do not construct lesson plans.
+- **Import boundary (`pleco_parser.py`)** turns bounded, untrusted Pleco XML into normalized cards without knowing about HTTP or Redis.
+- **Lesson planning (`SessionPlanner`)** owns category normalization, target selection, language-profile construction, topic suggestions, and planning-history updates. Its planning decisions are rule-based and LLM-free; it has no FastAPI, Redis, or LiveKit dependency.
+- **State boundary (`Store` / `RedisStore`)** imports and retrieves decks, persists plans and conversations, and applies transcript/mastery mutations. `SessionPlanner` sees only the three operations in its narrow `SessionPlanningStore` protocol, including one atomic plan commit.
+- **Tutor policy (`tutor.py`)** builds the Mandarin instructions and opening, validates transcript-backed assessments, and defines the narrow store adapter used by the voice layer. It has no LiveKit or provider imports.
+- **Realtime orchestration (`agent.py`)** joins dispatched rooms, wires STT → LLM → TTS, handles committed transcript events and assessment tool calls, and serializes writes to Redis.
+
+### Data flow
+
+1. **Import:** the browser uploads XML to FastAPI; `pleco_parser.py` validates and normalizes it; `Store.import_cards` merges it with existing conversational mastery and writes the deck document to Redis.
+2. **Plan:** the browser posts its category selection; the route delegates to `SessionPlanner`; the planner loads the deck and exposure history, applies the pure selection/profile rules, then atomically persists the updated planning state and planned session. The returned session drives the preview screen. Per-learner serialization prevents duplicate plans from racing in the single API process.
+3. **Connect:** the browser chooses a topic; FastAPI saves it, creates a short-lived participant token, and explicitly dispatches `plecoach-tutor` to the session's LiveKit room.
+4. **Converse:** browser audio travels over WebRTC through LiveKit Cloud. The dispatched agent loads the session from Redis, supplies its targets and language profile to `tutor.py`, and invokes the configured LiveKit Inference STT, LLM, and TTS stages.
+5. **Learn:** committed learner/tutor turns and validated assessment evidence are written through the tutor store adapter. Redis remains authoritative; compact assessment updates are also sent to the browser over LiveKit's reliable data channel.
 
 ## Learning model
 
@@ -128,7 +164,7 @@ Pleco statistics help order the first sessions, but Plecoach maintains its own e
 
 ### Redis as the source of runtime state
 
-Decks, category indexes, session targets, transcript/assessment events, and mastery records live in Redis. This directly satisfies the assignment and lets API and agent containers remain replaceable. For a larger long-lived product, Redis alone is not the ideal system of record; durable learner history would move to a relational database while Redis remained the hot session/cache layer.
+Decks, planning history, session targets, committed transcript/assessment events, and mastery records live in Redis. This directly satisfies the assignment, lets API instances be replaced, and gives a newly dispatched agent the persisted context it needs. Redis append-only-file persistence is enabled and backed by a named Docker volume, so state survives normal container recreation. It does not make an in-flight media job stateless: an agent crash still interrupts the live call and requires reconnect/re-dispatch. For a larger long-lived product, Redis alone is not the ideal system of record; durable learner history would move to a relational database while Redis remained the hot session/cache layer.
 
 ### Scope kept intentionally narrow
 
@@ -145,14 +181,15 @@ This is a single-learner demo with no account system. Pronunciation and tone sco
 
 ## Redis state
 
-Redis stores four conceptual record groups:
+Redis stores three JSON document types:
 
-- **Deck:** import metadata, normalized cards, and the category tree.
-- **Learner mastery:** per-card comprehension/usage evidence and scheduling fields.
-- **Session:** selected categories, the immutable language profile, deduplicated targets, room identity, status, and timestamps.
-- **Conversation:** up to 200 ordered transcript turns plus assessment evidence inside the session record.
+- `plecoach:learner:{learner_id}:deck` has no application TTL. It contains import metadata plus active/inactive normalized cards; each card embeds Pleco's soft scheduling metadata and Plecoach's separate comprehension/usage mastery.
+- `plecoach:learner:{learner_id}:planning` has no application TTL. It contains only recent target IDs and per-card selection counts, keeping preview exposure separate from learning evidence.
+- `plecoach:session:{session_id}` contains the selected categories, immutable language profile, deduplicated targets, topic, room identity, status, up to 200 ordered transcript turns, and timestamps. It expires after seven days by default; `SESSION_TTL_SECONDS` changes that.
 
-The current implementation uses `plecoach:learner:{learner_id}:deck` for the active deck and `plecoach:session:{session_id}` for a planned or active conversation. Session records expire after seven days by default; `SESSION_TTL_SECONDS` can change that. This makes API and agent workers horizontally replaceable without losing an active conversation.
+Redis runs with append-only-file persistence and writes under `/data`, which Docker maps to the named `plecoach-redis` volume. The data therefore survives `docker compose down` and container replacement; intentionally removing the volume, such as with `docker compose down -v`, removes it. The in-process `MemoryStore` is a test double only and is never a production fallback.
+
+The demo has no account system. On first load, the browser creates a random learner ID and retains it in local storage; that stable opaque ID selects the learner's Redis deck/planning keys. Deck, session, transcript-turn, and participant IDs are generated independently on the backend or connection boundary rather than derived from a browser fingerprint.
 
 ## HTTP API
 
@@ -165,7 +202,7 @@ FastAPI exposes interactive documentation at [http://localhost:8000/docs](http:/
 - `GET /api/sessions/{session_id}`
 - `POST /api/sessions/{session_id}/connection`
 
-The final endpoint returns a short-lived participant token and explicitly dispatches the configured `plecoach-tutor` agent to the session's LiveKit room.
+The final endpoint returns a short-lived participant token and explicitly dispatches the configured `plecoach-tutor` agent to the session's LiveKit room. `GET /api/decks/current?learner_id=...` and `POST /api/connection-details` remain compatibility aliases for older clients; the current browser uses the resource-oriented routes above. Conversation turns and assessments are not public HTTP endpoints: the dispatched agent writes them through the shared state boundary.
 
 ## Scaling to 10,000 concurrent sessions
 
@@ -174,6 +211,7 @@ The first bottleneck would be voice inference and one active agent process per r
 - Run API and agent workers as separate autoscaled deployments; scale agents from LiveKit dispatch queue depth, active jobs, CPU, and memory.
 - Use LiveKit Cloud's regional routing and place agent pools plus Redis close to the media region to reduce round trips.
 - Move durable decks and mastery events to Postgres, keep Redis Cluster for active-session state, presence, rate limits, and hot target sets.
+- Replace the single-process planning lock with a Postgres transaction or Redis compare-and-set/distributed lock so concurrent API replicas cannot lose target-rotation updates.
 - Partition Redis keys by learner/session and avoid global scans; use bounded streams and TTLs for transcript/session data.
 - Make assessment updates idempotent and append-only, then process mastery aggregation asynchronously so a slow write never blocks speech.
 - Pre-warm agent workers, cap concurrent jobs per worker, and apply admission control/backpressure when inference capacity is saturated.
@@ -187,12 +225,25 @@ The current service boundaries already allow that evolution; the take-home inten
 The deterministic checks should run without LiveKit credentials:
 
 ```bash
+# Validate the evaluator configuration
+docker compose config
+
 # Backend tests
 docker compose run --rm api pytest
 
-# Frontend checks
+# Frontend production build + tests
 docker compose run --rm web npm test
+
+# Frontend lint
+docker compose run --rm web npm run lint
 ```
+
+Latest submission verification:
+
+- `docker compose up -d --build` rebuilt and started all four services; the browser root and API health endpoint both returned HTTP 200, and the LiveKit worker registered successfully.
+- A live API/Redis smoke test imported the sample deck and created a six-target lesson plan successfully.
+- The backend suite passed 70 tests.
+- The frontend production build and all 32 tests passed; ESLint passed separately.
 
 For the evaluator path, build the images, start the stack, confirm service health, import the sample XML, and then run a short microphone conversation with valid LiveKit credentials.
 

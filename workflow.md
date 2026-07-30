@@ -11,7 +11,7 @@ This project was built as a time-boxed take-home with AI used as an engineering 
   - Google Gemma 4 31B IT for tutoring and assessment.
   - Cartesia Sonic-3 with its Chinese Female Conversational preset for native Mandarin streaming text-to-speech.
 - **Official documentation and targeted browser research** were used for volatile or provider-specific facts: current LiveKit model identifiers, Mandarin support, agent dispatch, turn handling, and token generation. I avoided relying on model memory for current SDK behavior.
-- **Local command-line checks and Docker Compose** form the verification harness. Tests cover deterministic application logic; container checks verify the evaluator's actual startup path.
+- **Local command-line checks and Docker Compose** form the verification harness. Tests cover rule-based application logic; container checks verify the evaluator's actual startup path.
 
 The only AI-generated visual is the social preview card (`public/og.png`), produced with Codex's built-in image-generation tool from the finished interface's typography, palette, and product copy, then checked for text accuracy. No user-supplied vocabulary or metadata is bundled. The included Pleco deck is synthetic.
 
@@ -51,19 +51,25 @@ I inspected the element and attribute structure of the provided Pleco v2 XML exp
 
 I gave each subagent a narrow contract:
 
-- API/parser: validation, category-tree construction, session selection, Redis persistence, and LiveKit access tokens.
+- API/parser: validation, category-tree construction, Redis persistence, and LiveKit access tokens.
 - Voice agent: Mandarin prompt, LiveKit model pipeline, target-word assessment, and persistence hooks.
 - Submission package: exact prompt, README, workflow disclosure, and synthetic sample data.
-- Main thread: frontend integration, Docker wiring, cross-component review, and final verification.
+- Main thread: frontend integration, lesson-planning orchestration, Docker wiring, cross-component review, and final verification.
 
 Agents shared the same workspace, so I used file ownership and short coordination messages to avoid conflicting edits. I reviewed the integrated result rather than accepting subagent output blindly.
 
-### 5. Verify in layers
+### 5. Refine the backend boundary after integration
+
+The integrated architecture review exposed one avoidable coupling: `Store.create_session` both decided what the lesson should contain and persisted it. I extracted that orchestration into `SessionPlanner`, injected it into the FastAPI application, and gave it a three-operation `SessionPlanningStore` protocol. Planning still happens entirely on the backend, but its decisions are now independently testable and no longer depend on FastAPI, Redis, LiveKit, or an LLM.
+
+The refactor intentionally kept the HTTP contract and Redis key schema stable. `Store` remains responsible for data access and state mutations; `SessionPlanner` normalizes category selection, coordinates target rotation and language-profile rules, constructs the planned session, and asks the store to commit planning history plus the session together. A per-learner planner lock prevents same-process requests from racing, and `RedisStore` uses one transaction for the two keys. Planner behavior lives in `test_session_planner.py`, while the broader import → plan → assessment → re-import path remains an integration test.
+
+### 6. Verify in layers
 
 The intended verification order is:
 
 1. Parse the synthetic XML and assert its card count, category hierarchy, and varied optional score histories.
-2. Run backend tests for validation, deduplication, category selection, and scheduling.
+2. Run backend tests for validation, deduplication, the planner/store boundary, category normalization, target rotation, language profiling, and mastery updates.
 3. Run frontend static checks and a production build.
 4. Validate the resolved Compose configuration.
 5. Build and start the same Compose services described in the README.
@@ -78,6 +84,7 @@ The final submission should report only checks that actually ran successfully; p
 - Imported XML is treated as untrusted input and bounded before parsing.
 - Personal Pleco exports stay outside the repository.
 - Pleco review scores never directly become conversational mastery.
+- Previewing a lesson updates target-rotation history, not mastery evidence.
 - LLM assessments are stored with supporting context and can be revised by later evidence.
 - I inspect the final diff for generated files, hardcoded credentials, stale TODOs, and claims not supported by a test or manual check.
 

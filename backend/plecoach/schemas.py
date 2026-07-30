@@ -195,6 +195,14 @@ class DeckResponse(BaseModel):
     cards: list[Card] = Field(default_factory=list)
 
 
+class PlanningState(BaseModel):
+    """Target exposure history kept separate from conversational mastery."""
+
+    learner_id: str
+    recent_target_card_ids: list[str] = Field(default_factory=list)
+    target_selection_counts: dict[str, int] = Field(default_factory=dict)
+
+
 class ImportResponse(BaseModel):
     deck_id: str
     learner_id: str
