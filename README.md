@@ -54,6 +54,8 @@ Plecoach Demo
 
 Choose a leaf for a focused conversation or a parent branch for a wider one. Cards assigned to more than one category are included only once. The fabricated Pleco histories range from new to well reviewed, making the scheduling behavior visible without including anyone's personal data.
 
+After importing a deck, **Reset user** in the header demonstrates the complete anonymous-user lifecycle. Plecoach asks for confirmation, deletes the current learner's persistent deck and planning history from Redis, and only then creates a fresh browser identity and returns to the import screen.
+
 ## Architecture
 
 ```mermaid
@@ -74,7 +76,6 @@ flowchart LR
         routes --> parser
         routes --> planner
         routes --> store
-        parser --> store
         planner --> rules
         planner --> store
     end
@@ -102,14 +103,14 @@ flowchart LR
     adapter <--> redis
 ```
 
-Docker Compose runs four processes: the web server, FastAPI process, LiveKit agent worker, and Redis server. `SessionPlanner` and the parser are modules inside the FastAPI process, not additional containers. The shared `store.py` module supplies FastAPI's `RedisStore`; each dispatched agent job creates another behind `RedisTutorStoreAdapter`. `tutor.py` is imported by the agent worker and does not run separately. LiveKit Cloud carries low-latency media, room state, and agent dispatch; the STT, LLM, and TTS model calls use LiveKit Inference. The agent orchestration itself runs in this repository's `agent` container.
+Docker Compose runs four services: the web server, FastAPI process, LiveKit agent worker, and Redis server. `SessionPlanner` and the parser are modules inside the FastAPI process, not additional containers. The shared `store.py` module supplies FastAPI's `RedisStore`; each dispatched agent job creates another behind `RedisTutorStoreAdapter`. `tutor.py` is imported by the agent worker and does not run separately. LiveKit Cloud carries low-latency media, room state, and agent dispatch; the STT, LLM, and TTS model calls use LiveKit Inference. The agent orchestration itself runs in this repository's `agent` container.
 
 The boundaries are intentional:
 
 - **HTTP boundary (`api.py`)** validates requests, maps application errors to status codes, and issues short-lived LiveKit room access. Routes do not construct lesson plans.
 - **Import boundary (`pleco_parser.py`)** turns bounded, untrusted Pleco XML into normalized cards without knowing about HTTP or Redis.
 - **Lesson planning (`SessionPlanner`)** owns category normalization, target selection, language-profile construction, topic suggestions, and planning-history updates. Its planning decisions are rule-based and LLM-free; it has no FastAPI, Redis, or LiveKit dependency.
-- **State boundary (`Store` / `RedisStore`)** imports and retrieves decks, persists plans and conversations, and applies transcript/mastery mutations. `SessionPlanner` sees only the three operations in its narrow `SessionPlanningStore` protocol, including one atomic plan commit.
+- **State boundary (`Store` / `RedisStore`)** imports, retrieves, and deletes learner-scoped deck and planning data; persists plans and conversations; and applies transcript, spoken-target, and mastery mutations. `SessionPlanner` sees only the three operations in its narrow `SessionPlanningStore` protocol, including one atomic plan commit.
 - **Tutor policy (`tutor.py`)** builds the Mandarin instructions and opening, validates transcript-backed assessments, and defines the narrow store adapter used by the voice layer. It has no LiveKit or provider imports.
 - **Realtime orchestration (`agent.py`)** joins dispatched rooms, wires STT → LLM → TTS, handles committed transcript events and assessment tool calls, and serializes writes to Redis.
 
@@ -119,7 +120,8 @@ The boundaries are intentional:
 2. **Plan:** the browser posts its category selection; the route delegates to `SessionPlanner`; the planner loads the deck and exposure history, applies the pure selection/profile rules, then atomically persists the updated planning state and planned session. The returned session drives the preview screen. Per-learner serialization prevents duplicate plans from racing in the single API process.
 3. **Connect:** the browser chooses a topic; FastAPI saves it, creates a short-lived participant token, and explicitly dispatches `plecoach-tutor` to the session's LiveKit room.
 4. **Converse:** browser audio travels over WebRTC through LiveKit Cloud. The dispatched agent loads the session from Redis, supplies its targets and language profile to `tutor.py`, and invokes the configured LiveKit Inference STT, LLM, and TTS stages.
-5. **Learn:** committed learner/tutor turns and validated assessment evidence are written through the tutor store adapter. Redis remains authoritative; compact assessment updates are also sent to the browser over LiveKit's reliable data channel.
+5. **Learn:** committed learner/tutor turns, deterministic learner-spoken target matches, and validated assessment evidence are written through the tutor store adapter. Redis remains authoritative; compact spoken-target and assessment updates are also sent to the browser over LiveKit's reliable data channel.
+6. **Reset:** from the deck dashboard, the browser requests deletion of the current learner. FastAPI validates the opaque learner ID and `RedisStore` removes exactly the deck and planning keys with one multi-key `DEL`. The browser rotates to a new local identity only after the API returns success; a failed cleanup leaves the current learner intact.
 
 ## Learning model
 
@@ -166,9 +168,17 @@ Pleco statistics help order the first sessions, but Plecoach maintains its own e
 
 Decks, planning history, session targets, committed transcript/assessment events, and mastery records live in Redis. This directly satisfies the assignment, lets API instances be replaced, and gives a newly dispatched agent the persisted context it needs. Redis append-only-file persistence is enabled and backed by a named Docker volume, so state survives normal container recreation. It does not make an in-flight media job stateless: an agent crash still interrupts the live call and requires reconnect/re-dispatch. For a larger long-lived product, Redis alone is not the ideal system of record; durable learner history would move to a relational database while Redis remained the hot session/cache layer.
 
+### Anonymous identity and deletion
+
+The demo keeps one active anonymous learner ID in browser local storage rather than adding an account system. That ID selects the authoritative Redis records; local storage is not the source of learner data. Reset is deliberately destructive and idempotent for the current persistent learner state: it deletes the known learner's no-TTL deck and planning keys before changing the browser identity, so a completed reset does not orphan those records. Session documents are not found with a global key scan; they retain their bounded rolling seven-day TTL and expire normally.
+
+There is no global anonymous-user scavenger. An identity abandoned by clearing browser storage directly, or data orphaned before the reset cleanup existed, is not retroactively discovered. For a complete local wipe, `docker compose down -v` removes the Redis volume.
+
+The opaque learner ID is a convenient demo identifier, not an authentication boundary. A production service would authenticate the user, verify record ownership on every route, and coordinate reset/import writes across replicas.
+
 ### Scope kept intentionally narrow
 
-This is a single-learner demo with no account system. Pronunciation and tone scoring are deferred: the current definition of fluency is semantic understanding plus correct contextual use. Both choices keep the take-home centered on a working LiveKit conversation and a defensible learning loop.
+This is a single-active-learner-per-browser demo with no account system. Pronunciation and tone scoring are deferred: the current definition of fluency is semantic understanding plus correct contextual use. Both choices keep the take-home centered on a working LiveKit conversation and a defensible learning loop.
 
 ## Import behavior and privacy
 
@@ -177,6 +187,7 @@ This is a single-learner demo with no account system. Pronunciation and tone sco
 - Category paths are derived from the slash-delimited Pleco assignment and retained as a tree.
 - XML is validated and bounded before persistence; malformed or empty decks return a useful error.
 - Re-importing merges cards by simplified headword plus pinyin, preserves Plecoach mastery, updates current Pleco metadata, and marks cards missing from the new file inactive instead of deleting them.
+- Reset requires an explicit confirmation and removes only the current learner's deck and planning history. If the API cleanup fails, the browser keeps the current identity and data.
 - The repository contains only a hand-authored synthetic fixture. Personal exports and root `.env` files should never be committed.
 
 ## Redis state
@@ -185,11 +196,13 @@ Redis stores three JSON document types:
 
 - `plecoach:learner:{learner_id}:deck` has no application TTL. It contains import metadata plus active/inactive normalized cards; each card embeds Pleco's soft scheduling metadata and Plecoach's separate comprehension/usage mastery.
 - `plecoach:learner:{learner_id}:planning` has no application TTL. It contains only recent target IDs and per-card selection counts, keeping preview exposure separate from learning evidence.
-- `plecoach:session:{session_id}` contains the selected categories, immutable language profile, deduplicated targets, topic, room identity, status, up to 200 ordered transcript turns, and timestamps. It expires after seven days by default; `SESSION_TTL_SECONDS` changes that.
+- `plecoach:session:{session_id}` contains the selected categories, immutable language profile, deduplicated targets, learner-spoken target IDs, topic, room identity, status, up to 200 ordered transcript turns, and timestamps. Each write refreshes its rolling seven-day TTL by default; `SESSION_TTL_SECONDS` changes that window.
 
 Redis runs with append-only-file persistence and writes under `/data`, which Docker maps to the named `plecoach-redis` volume. The data therefore survives `docker compose down` and container replacement; intentionally removing the volume, such as with `docker compose down -v`, removes it. The in-process `MemoryStore` is a test double only and is never a production fallback.
 
-The demo has no account system. On first load, the browser creates a random learner ID and retains it in local storage; that stable opaque ID selects the learner's Redis deck/planning keys. Deck, session, transcript-turn, and participant IDs are generated independently on the backend or connection boundary rather than derived from a browser fingerprint.
+The learner keys intentionally have no TTL while the learner is active because they contain durable progress. On reset, one multi-key Redis `DEL` removes both keys; the operation is safe to retry when either or both keys are already absent. Session keys remain bounded by their TTL, avoiding a global Redis scan during reset.
+
+The demo has no account system. On first load, the browser creates a random learner ID and retains it in local storage; that stable opaque ID selects the learner's Redis deck/planning keys. A reset replaces the ID only after server-side deletion succeeds. Deck, session, transcript-turn, and participant IDs are generated independently on the backend or connection boundary rather than derived from a browser fingerprint.
 
 ## HTTP API
 
@@ -198,11 +211,12 @@ FastAPI exposes interactive documentation at [http://localhost:8000/docs](http:/
 - `GET /api/health`
 - `POST /api/decks/import` with multipart `file` and `learner_id`
 - `GET /api/decks/{learner_id}`
+- `DELETE /api/learners/{learner_id}`
 - `POST /api/sessions`
 - `GET /api/sessions/{session_id}`
 - `POST /api/sessions/{session_id}/connection`
 
-The final endpoint returns a short-lived participant token and explicitly dispatches the configured `plecoach-tutor` agent to the session's LiveKit room. `GET /api/decks/current?learner_id=...` and `POST /api/connection-details` remain compatibility aliases for older clients; the current browser uses the resource-oriented routes above. Conversation turns and assessments are not public HTTP endpoints: the dispatched agent writes them through the shared state boundary.
+Deleting a learner removes that learner's persistent deck and planning keys and returns `204 No Content`; it is idempotent when those keys are already absent. The reset control only switches the browser to a fresh identity after that cleanup succeeds. Bounded session documents retain their normal rolling expiration rather than requiring a global Redis scan, so this route is not immediate erasure of every session artifact associated with the anonymous ID. The final connection endpoint returns a short-lived participant token and explicitly dispatches the configured `plecoach-tutor` agent to the session's LiveKit room. `GET /api/decks/current?learner_id=...` and `POST /api/connection-details` remain compatibility aliases for older clients; the current browser uses the resource-oriented routes above. Conversation turns and assessments are not public HTTP endpoints: the dispatched agent writes them through the shared state boundary.
 
 ## Scaling to 10,000 concurrent sessions
 
@@ -212,6 +226,7 @@ The first bottleneck would be voice inference and one active agent process per r
 - Use LiveKit Cloud's regional routing and place agent pools plus Redis close to the media region to reduce round trips.
 - Move durable decks and mastery events to Postgres, keep Redis Cluster for active-session state, presence, rate limits, and hot target sets.
 - Replace the single-process planning lock with a Postgres transaction or Redis compare-and-set/distributed lock so concurrent API replicas cannot lose target-rotation updates.
+- Require authenticated learner ownership and coordinate destructive resets with concurrent imports, plans, and agent writes through a database transaction or distributed lifecycle lock.
 - Partition Redis keys by learner/session and avoid global scans; use bounded streams and TTLs for transcript/session data.
 - Make assessment updates idempotent and append-only, then process mastery aggregation asynchronously so a slow write never blocks speech.
 - Pre-warm agent workers, cap concurrent jobs per worker, and apply admission control/backpressure when inference capacity is saturated.
@@ -241,9 +256,9 @@ docker compose run --rm web npm run lint
 Latest submission verification:
 
 - `docker compose up -d --build` rebuilt and started all four services; the browser root and API health endpoint both returned HTTP 200, and the LiveKit worker registered successfully.
-- A live API/Redis smoke test imported the sample deck and created a six-target lesson plan successfully.
-- The backend suite passed 70 tests.
-- The frontend production build and all 32 tests passed; ESLint passed separately.
+- A live API/Redis smoke test imported the sample deck, created a six-target lesson plan, confirmed both persistent learner keys existed, reset the learner, confirmed both keys were deleted, and received HTTP 404 for the deleted deck.
+- The backend suite passed 78 tests, including idempotent deletion, learner isolation, invalid-ID rejection, bounded-session retention, and deterministic learner-spoken target detection.
+- The frontend production build and all 43 tests passed, including cleanup-before-identity-rotation, cleanup-failure behavior, and monotonic focus-word checks across realtime updates and stale polling; ESLint passed separately.
 
 For the evaluator path, build the images, start the stack, confirm service health, import the sample XML, and then run a short microphone conversation with valid LiveKit credentials.
 
@@ -258,5 +273,6 @@ Before sharing the repository, record a short walkthrough that shows:
 - a nested category selection and its six planned target words
 - the browser joining a LiveKit room and the tutor speaking Mandarin
 - one interrupted turn, the live transcript, and an updated word state
+- the reset confirmation deleting the current learner and returning to an empty import screen
 
 Add the final video link to the submission message or immediately below this checklist.

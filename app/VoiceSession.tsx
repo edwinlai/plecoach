@@ -29,6 +29,11 @@ import {
   useState,
 } from "react";
 import type { Card } from "./PlecoachApp";
+import {
+  mergeLearnerSpokenTargetIds,
+  normalizeFocusWordCard,
+  type FocusWordCard,
+} from "./focus-word-progress";
 import { groupTranscriptTurns } from "./transcript-turns";
 import { resolveRoomDisconnection } from "./voice-session-lifecycle";
 
@@ -92,7 +97,19 @@ function LiveConversation({
     () => groupTranscriptTurns(transcriptions),
     [transcriptions],
   );
-  const [cards, setCards] = useState(plan.target_cards);
+  const [cards, setCards] = useState<FocusWordCard[]>(() =>
+    plan.target_cards.map(normalizeFocusWordCard),
+  );
+  const targetCardIds = useMemo(
+    () =>
+      new Set(
+        plan.target_cards.map((card) => card.card_id).filter(Boolean),
+      ),
+    [plan.target_cards],
+  );
+  const [learnerSpokenTargetIds, setLearnerSpokenTargetIds] = useState<
+    ReadonlySet<string>
+  >(() => new Set());
   const [pinyinConverter, setPinyinConverter] =
     useState<TranscriptPinyinConverter | null>(null);
   const transcriptList = useRef<HTMLDivElement>(null);
@@ -104,35 +121,60 @@ function LiveConversation({
       : state === "connecting" || state === "initializing"
         ? "Connecting"
         : "Live";
-  const handleAssessment = useCallback((message: { payload: Uint8Array }) => {
-    try {
-      const payload = JSON.parse(new TextDecoder().decode(message.payload)) as {
-        type?: string;
-        card_id?: string;
-        comprehension?: number | null;
-        independent_usage?: number | null;
-        mastery?: { state?: Card["mastery_state"] };
-      };
-      if (payload.type !== "card_assessment" || !payload.card_id) return;
-      setCards((current) =>
-        current.map((card) =>
-          card.card_id === payload.card_id
-            ? {
-                ...card,
-                mastery_state: payload.mastery?.state ?? card.mastery_state,
-                comprehension:
-                  payload.comprehension ?? card.comprehension,
-                independent_usage:
-                  payload.independent_usage ?? card.independent_usage,
-              }
-            : card,
-        ),
-      );
-    } catch {
-      // Ignore unrelated or malformed packets; Redis polling remains the fallback.
-    }
-  }, []);
-  useDataChannel("plecoach.card-assessment", handleAssessment);
+  const handleProgress = useCallback(
+    (message: { payload: Uint8Array }) => {
+      try {
+        const payload = JSON.parse(
+          new TextDecoder().decode(message.payload),
+        ) as {
+          type?: string;
+          card_id?: string;
+          card_ids?: unknown;
+          comprehension?: number | null;
+          independent_usage?: number | null;
+          mastery?: {
+            state?: Card["mastery_state"];
+            comprehension_score?: number | null;
+            usage_score?: number | null;
+          };
+        };
+        if (payload.type === "learner_spoken_targets") {
+          setLearnerSpokenTargetIds((current) =>
+            mergeLearnerSpokenTargetIds(
+              current,
+              payload.card_ids,
+              targetCardIds,
+            ),
+          );
+          return;
+        }
+        if (payload.type !== "card_assessment" || !payload.card_id) return;
+        setCards((current) =>
+          current.map((card) =>
+            card.card_id === payload.card_id
+              ? normalizeFocusWordCard({
+                  ...card,
+                  mastery_state:
+                    payload.mastery?.state ?? card.mastery_state,
+                  comprehension:
+                    payload.mastery?.comprehension_score ??
+                    payload.comprehension ??
+                    card.comprehension,
+                  independent_usage:
+                    payload.mastery?.usage_score ??
+                    payload.independent_usage ??
+                    card.independent_usage,
+                })
+              : card,
+          ),
+        );
+      } catch {
+        // Ignore malformed packets; Redis polling remains the fallback.
+      }
+    },
+    [targetCardIds],
+  );
+  useDataChannel("plecoach.card-assessment", handleProgress);
 
   useEffect(() => {
     let cancelled = false;
@@ -176,11 +218,22 @@ function LiveConversation({
         );
         if (!response.ok) return;
         const payload = (await response.json()) as {
-          target_cards?: Card[];
-          cards?: Card[];
+          target_cards?: Array<FocusWordCard | Record<string, unknown>>;
+          cards?: Array<FocusWordCard | Record<string, unknown>>;
+          learner_spoken_target_card_ids?: unknown;
         };
         const nextCards = payload.target_cards ?? payload.cards;
-        if (!cancelled && Array.isArray(nextCards)) setCards(nextCards);
+        if (cancelled) return;
+        if (Array.isArray(nextCards)) {
+          setCards(nextCards.map(normalizeFocusWordCard));
+        }
+        setLearnerSpokenTargetIds((current) =>
+          mergeLearnerSpokenTargetIds(
+            current,
+            payload.learner_spoken_target_card_ids,
+            targetCardIds,
+          ),
+        );
       } catch {
         // Voice should remain usable if progress refresh briefly fails.
       }
@@ -191,18 +244,12 @@ function LiveConversation({
       cancelled = true;
       window.clearInterval(timer);
     };
-  }, [apiBase, plan.session_id]);
+  }, [apiBase, plan.session_id, targetCardIds]);
 
   const completedCount = useMemo(
     () =>
-      cards.filter(
-        (card) =>
-          card.mastery_state === "practicing" ||
-          card.mastery_state === "fluent" ||
-          (card.comprehension ?? 0) > 0.55 ||
-          (card.independent_usage ?? 0) > 0.55,
-      ).length,
-    [cards],
+      cards.filter((card) => learnerSpokenTargetIds.has(card.card_id)).length,
+    [cards, learnerSpokenTargetIds],
   );
 
   return (
@@ -324,11 +371,7 @@ function LiveConversation({
           </div>
           <div className="session-word-list">
             {cards.map((card) => {
-              const active =
-                card.mastery_state === "practicing" ||
-                card.mastery_state === "fluent" ||
-                (card.comprehension ?? 0) > 0.55 ||
-                (card.independent_usage ?? 0) > 0.55;
+              const active = learnerSpokenTargetIds.has(card.card_id);
               const pinyin = card.pinyin || "拼音未提供";
               const detailLabel = card.definition
                 ? `拼音：${pinyin}。词义：${card.definition}`
@@ -364,7 +407,7 @@ function LiveConversation({
                     </span>
                   </div>
                   <span className="evidence-label">
-                    {active ? "已出现" : "待练习"}
+                    {active ? "已说到" : "待练习"}
                   </span>
                 </article>
               );
@@ -379,7 +422,7 @@ function LiveConversation({
           <div className="assessment-note">
             <Target size={16} />
             <p>
-              Plecoach 会根据你是否理解并独立使用词汇来更新熟练度。
+              说到的词会在这里标记；理解和使用是否正确会另外更新熟练度。
             </p>
           </div>
         </aside>

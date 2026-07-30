@@ -15,6 +15,7 @@ import {
   MessageCircle,
   Mic2,
   RefreshCw,
+  RotateCcw,
   Sparkles,
   Target,
   UploadCloud,
@@ -29,6 +30,10 @@ import {
   useState,
 } from "react";
 import { scopeCardsToSelection, summarizeMastery } from "./deck-scope";
+import {
+  getOrCreateLearnerId,
+  resetLearnerIdentity,
+} from "./learner-identity";
 import { translateConversationTopic } from "./topic-translations";
 import { VoiceSession } from "./VoiceSession";
 
@@ -90,11 +95,11 @@ const stateLabels: Record<MasteryState, string> = {
 
 function createLearnerId() {
   if (typeof window === "undefined") return "";
-  const existing = window.localStorage.getItem("plecoach-learner-id");
-  if (existing) return existing;
-  const value = window.crypto?.randomUUID?.() ?? `learner-${Date.now()}`;
-  window.localStorage.setItem("plecoach-learner-id", value);
-  return value;
+  return getOrCreateLearnerId(window.localStorage, generateLearnerId);
+}
+
+function generateLearnerId() {
+  return window.crypto?.randomUUID?.() ?? `learner-${Date.now()}`;
 }
 
 function normalizeCategory(node: Record<string, unknown>): CategoryNode {
@@ -623,6 +628,7 @@ function DeckDashboard({
   onSelectAll,
   onPlan,
   onImport,
+  onResetUser,
   planning,
   error,
 }: {
@@ -632,6 +638,7 @@ function DeckDashboard({
   onSelectAll: () => void;
   onPlan: () => void;
   onImport: (file: File) => void;
+  onResetUser: () => void;
   planning: boolean;
   error: string | null;
 }) {
@@ -691,8 +698,18 @@ function DeckDashboard({
             type="button"
             className="secondary-button"
             onClick={() => inputRef.current?.click()}
+            disabled={planning}
           >
             <FileUp size={16} /> Update deck
+          </button>
+          <button
+            type="button"
+            className="secondary-button reset-user-button"
+            onClick={onResetUser}
+            disabled={planning}
+            title="Start over with a new learner and an empty deck"
+          >
+            <RotateCcw size={16} /> Reset user
           </button>
         </div>
       </header>
@@ -862,8 +879,79 @@ function DeckDashboard({
   );
 }
 
+function ResetUserDialog({
+  onCancel,
+  onConfirm,
+  busy,
+  error,
+}: {
+  onCancel: () => void;
+  onConfirm: () => void;
+  busy: boolean;
+  error: string | null;
+}) {
+  return (
+    <div className="dialog-backdrop" role="presentation">
+      <section
+        className="reset-dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="reset-user-title"
+        aria-describedby="reset-user-description"
+      >
+        <button
+          type="button"
+          className="dialog-close"
+          onClick={onCancel}
+          disabled={busy}
+          aria-label="Cancel user reset"
+        >
+          <X size={20} />
+        </button>
+        <div className="reset-dialog-icon" aria-hidden="true">
+          <RotateCcw size={22} />
+        </div>
+        <p className="eyebrow coral">Fresh start</p>
+        <h2 id="reset-user-title">Reset this user?</h2>
+        <p id="reset-user-description" className="muted">
+          Plecoach will permanently delete this learner’s saved deck and
+          planning progress, then create a new learner with an empty deck.
+        </p>
+        {error ? (
+          <p className="inline-error" role="alert">
+            <CircleAlert size={16} /> {error}
+          </p>
+        ) : null}
+        <div className="reset-dialog-actions">
+          <button
+            type="button"
+            className="secondary-button"
+            onClick={onCancel}
+            disabled={busy}
+          >
+            Keep current user
+          </button>
+          <button
+            type="button"
+            className="danger-button"
+            onClick={onConfirm}
+            disabled={busy}
+          >
+            {busy ? (
+              <LoaderCircle className="spin" size={16} />
+            ) : (
+              <RotateCcw size={16} />
+            )}
+            {busy ? "Deleting learner…" : "Delete & start fresh"}
+          </button>
+        </div>
+      </section>
+    </div>
+  );
+}
+
 export function PlecoachApp() {
-  const [learnerId] = useState(createLearnerId);
+  const [learnerId, setLearnerId] = useState(createLearnerId);
   const [deck, setDeck] = useState<Deck | null>(null);
   const [selectedPaths, setSelectedPaths] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
@@ -874,6 +962,9 @@ export function PlecoachApp() {
   const [plan, setPlan] = useState<SessionPlan | null>(null);
   const [chosenTopic, setChosenTopic] = useState("");
   const [connection, setConnection] = useState<ConnectionDetails | null>(null);
+  const [resetDialogOpen, setResetDialogOpen] = useState(false);
+  const [resetting, setResetting] = useState(false);
+  const [resetError, setResetError] = useState<string | null>(null);
 
   const loadDeck = useCallback(async (id: string) => {
     setLoading(true);
@@ -1033,6 +1124,36 @@ export function PlecoachApp() {
     }
   };
 
+  const resetUser = async () => {
+    setResetting(true);
+    setResetError(null);
+    try {
+      const nextLearnerId = await resetLearnerIdentity({
+        apiBase: API_BASE,
+        learnerId,
+        storage: window.localStorage,
+        generateId: generateLearnerId,
+      });
+      setResetDialogOpen(false);
+      setDeck(null);
+      setSelectedPaths(new Set());
+      setPlan(null);
+      setChosenTopic("");
+      setConnection(null);
+      setError(null);
+      setLoading(true);
+      setLearnerId(nextLearnerId);
+    } catch (resetRequestError) {
+      setResetError(
+        resetRequestError instanceof Error
+          ? resetRequestError.message
+          : "Plecoach couldn’t reset this learner.",
+      );
+    } finally {
+      setResetting(false);
+    }
+  };
+
   if (loading) {
     return (
       <main className="loading-screen" aria-live="polite">
@@ -1082,6 +1203,10 @@ export function PlecoachApp() {
         onSelectAll={() => setSelectedPaths(new Set())}
         onPlan={createPlan}
         onImport={importDeck}
+        onResetUser={() => {
+          setResetError(null);
+          setResetDialogOpen(true);
+        }}
         planning={planning || importing}
         error={error}
       />
@@ -1097,6 +1222,17 @@ export function PlecoachApp() {
           onStart={startSession}
           busy={connecting}
           error={error}
+        />
+      ) : null}
+      {resetDialogOpen ? (
+        <ResetUserDialog
+          onCancel={() => {
+            setResetError(null);
+            setResetDialogOpen(false);
+          }}
+          onConfirm={() => void resetUser()}
+          busy={resetting}
+          error={resetError}
         />
       ) : null}
     </>

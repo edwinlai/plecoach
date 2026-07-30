@@ -3,10 +3,12 @@ from __future__ import annotations
 import asyncio
 from typing import Any
 
+import pytest
+
 from plecoach.pleco_parser import parse_pleco_xml
 from plecoach.schemas import MasteryState, PlanningState, SessionRecord
 from plecoach.session_planner import SessionPlanner
-from plecoach.store import MemoryStore, RedisStore
+from plecoach.store import DeckNotFoundError, MemoryStore, RedisStore
 
 
 XML_V1 = b"""<plecoflash formatversion="2"><cards>
@@ -60,10 +62,15 @@ class RecordingRedis:
     def __init__(self) -> None:
         self.transaction: bool | None = None
         self.pipeline_instance = RecordingPipeline()
+        self.delete_calls: list[tuple[str, ...]] = []
 
     def pipeline(self, *, transaction: bool) -> RecordingPipeline:
         self.transaction = transaction
         return self.pipeline_instance
+
+    async def delete(self, *keys: str) -> int:
+        self.delete_calls.append(keys)
+        return len(keys)
 
 
 def test_redis_store_commits_planning_state_and_session_in_one_transaction() -> None:
@@ -94,6 +101,47 @@ def test_redis_store_commits_planning_state_and_session_in_one_transaction() -> 
             ("plecoach:learner:learner:planning", None),
             ("plecoach:session:session-test", 123),
         ]
+
+    asyncio.run(scenario())
+
+
+def test_redis_store_deletes_only_the_learner_persistent_keys() -> None:
+    async def scenario() -> None:
+        redis = RecordingRedis()
+        store = RedisStore(client=redis)
+
+        await store.delete_learner_data("learner")
+
+        assert redis.delete_calls == [
+            (
+                "plecoach:learner:learner:deck",
+                "plecoach:learner:learner:planning",
+            )
+        ]
+
+    asyncio.run(scenario())
+
+
+def test_delete_learner_data_removes_deck_and_planning_but_keeps_ttl_session() -> None:
+    async def scenario() -> None:
+        store = MemoryStore()
+        planner = SessionPlanner(store)
+        await store.import_cards("learner-1", parse_pleco_xml(XML_V1), "first.xml")
+        await store.import_cards("learner-2", parse_pleco_xml(XML_V1), "second.xml")
+        session = await planner.create_session(
+            "learner-1", ["Travel/Directions"], target_count=2
+        )
+
+        await store.delete_learner_data("learner-1")
+
+        with pytest.raises(DeckNotFoundError):
+            await store.get_deck("learner-1")
+        assert await store.get_planning_state("learner-1") is None
+        assert (await store.get_session(session.session_id)).learner_id == "learner-1"
+        assert (await store.get_deck("learner-2")).card_count == 2
+
+        # Retrying a reset is safe even when the learner no longer has data.
+        await store.delete_learner_data("learner-1")
 
     asyncio.run(scenario())
 

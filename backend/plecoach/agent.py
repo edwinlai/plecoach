@@ -33,6 +33,7 @@ from .config import (
     livekit_tts_config,
     load_livekit_config,
 )
+from .focus_words import find_spoken_target_card_ids
 from .schemas import TutorLanguageProfile
 from .store import RedisStore
 from .tutor import (
@@ -156,6 +157,32 @@ class TutorRuntime:
                 text,
             )
 
+    async def persist_transcript(
+        self,
+        role: Literal["student", "tutor"],
+        text: str,
+    ) -> Any:
+        """Persist a committed turn and publish deterministic learner mentions."""
+
+        turn = await self.append_transcript(role, text)
+        if role != "student":
+            return turn
+
+        card_ids = find_spoken_target_card_ids(text, self.context.target_cards)
+        if not card_ids:
+            return turn
+        try:
+            await self.publish_event(
+                {
+                    "type": "learner_spoken_targets",
+                    "card_ids": card_ids,
+                }
+            )
+        except Exception:
+            # Redis already contains the monotonic IDs; polling will recover.
+            logger.exception("Failed to publish realtime spoken-target update")
+        return turn
+
     async def record_assessment(self, assessment: CardAssessment) -> Any:
         """Serialize mastery and session writes with committed transcript writes."""
 
@@ -273,7 +300,7 @@ def _attach_transcript_persistence(
         if role is None or not text:
             return
         runtime.write_soon(
-            runtime.append_transcript(
+            runtime.persist_transcript(
                 role,
                 text,
             )

@@ -71,6 +71,18 @@ def test_full_setup_contract(monkeypatch) -> None:
         saved = client.get(f"/api/sessions/{session_id}")
         assert saved.json()["topic"] == "在餐厅点菜"
 
+        deleted = client.delete("/api/learners/browser-user")
+        assert deleted.status_code == 204
+        assert deleted.content == b""
+        assert client.get("/api/decks/browser-user").status_code == 404
+
+        # Session documents keep their bounded retention instead of being
+        # scanned globally during a learner reset.
+        assert client.get(f"/api/sessions/{session_id}").status_code == 200
+
+        # The endpoint is idempotent for a retry after a lost response.
+        assert client.delete("/api/learners/browser-user").status_code == 204
+
 
 def test_placeholder_livekit_config_is_unhealthy_and_cannot_connect(
     monkeypatch,
@@ -149,3 +161,13 @@ def test_session_planning_errors_map_to_http_statuses() -> None:
         )
         assert empty_selection.status_code == 422
         assert "do not contain any active flashcards" in empty_selection.json()["detail"]
+
+
+def test_delete_learner_rejects_an_invalid_identity() -> None:
+    application = api.create_app(MemoryStore())
+
+    with TestClient(application) as client:
+        response = client.delete("/api/learners/not.valid")
+
+    assert response.status_code == 422
+    assert "learner_id must contain only" in response.json()["detail"]

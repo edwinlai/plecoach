@@ -148,6 +148,7 @@ input:focus-visible {
 
 .primary-button,
 .secondary-button,
+.danger-button,
 .text-button {
   display: inline-flex;
   align-items: center;
@@ -191,6 +192,20 @@ input:focus-visible {
   border-color: #c9c2b6;
 }
 
+.danger-button {
+  min-height: 40px;
+  padding: 0 16px;
+  background: var(--coral);
+  color: white;
+  box-shadow: 0 8px 18px rgba(232, 94, 79, 0.18);
+}
+
+.danger-button:hover {
+  transform: translateY(-1px);
+  background: var(--coral-dark);
+  box-shadow: 0 11px 22px rgba(232, 94, 79, 0.24);
+}
+
 .text-button {
   min-height: 30px;
   padding: 0;
@@ -205,6 +220,7 @@ input:focus-visible {
 
 .primary-button:disabled,
 .secondary-button:disabled,
+.danger-button:disabled,
 .text-button:disabled {
   cursor: not-allowed;
   opacity: 0.58;
@@ -486,6 +502,15 @@ input:focus-visible {
   display: flex;
   align-items: center;
   gap: 11px;
+}
+
+.reset-user-button {
+  color: var(--coral-dark);
+}
+
+.reset-user-button:hover:not(:disabled) {
+  border-color: rgba(200, 71, 60, 0.35);
+  background: var(--coral-soft);
 }
 
 .connection-pill {
@@ -1031,6 +1056,46 @@ input:focus-visible {
   overflow: auto;
 }
 
+.reset-dialog {
+  position: relative;
+  width: min(470px, 100%);
+  padding: 30px;
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  border-radius: 23px 23px 23px 8px;
+  background: var(--paper);
+  box-shadow: 0 28px 90px rgba(8, 24, 20, 0.28);
+}
+
+.reset-dialog-icon {
+  display: grid;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  margin-bottom: 18px;
+  border-radius: 14px;
+  background: var(--coral-soft);
+  color: var(--coral-dark);
+}
+
+.reset-dialog h2 {
+  margin: 0 42px 10px 0;
+  font-size: 28px;
+  letter-spacing: -0.045em;
+}
+
+.reset-dialog > .muted {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.reset-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 26px;
+}
+
 .dialog-close {
   position: absolute;
   top: 18px;
@@ -1043,6 +1108,11 @@ input:focus-visible {
   border-radius: 9px;
   background: var(--white);
   cursor: pointer;
+}
+
+.dialog-close:disabled {
+  cursor: wait;
+  opacity: 0.55;
 }
 
 .dialog-kicker {
@@ -1890,6 +1960,19 @@ input:focus-visible {
     display: none;
   }
 
+  .header-actions {
+    gap: 7px;
+  }
+
+  .header-actions .secondary-button {
+    width: 40px;
+    padding: 0;
+  }
+
+  .reset-user-button {
+    font-size: 0;
+  }
+
   .dashboard-intro h1 {
     font-size: 32px;
   }
@@ -1908,6 +1991,15 @@ input:focus-visible {
 
   .plan-dialog {
     padding: 26px 20px;
+  }
+
+  .reset-dialog {
+    padding: 26px 20px;
+  }
+
+  .reset-dialog-actions {
+    align-items: stretch;
+    flex-direction: column-reverse;
   }
 
   .topic-option {

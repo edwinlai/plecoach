@@ -211,6 +211,17 @@ def create_app(store: Store | None = None) -> FastAPI:
     async def get_deck(learner_id: str, state: StoreDependency) -> DeckResponse:
         return await deck_for(learner_id, state)
 
+    @application.delete("/api/learners/{learner_id}", status_code=204)
+    async def delete_learner(
+        learner_id: str,
+        state: StoreDependency,
+    ) -> Response:
+        try:
+            await state.delete_learner_data(learner_id)
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+        return Response(status_code=204)
+
     @application.post("/api/sessions", response_model=SessionRecord, status_code=201)
     async def create_session(
         request: SessionCreateRequest, planner: SessionPlannerDependency

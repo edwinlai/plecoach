@@ -270,6 +270,7 @@ class SessionRecord(BaseModel):
     topic: str | None = None
     state: SessionState = SessionState.PLANNED
     transcript: list[TranscriptTurn] = Field(default_factory=list)
+    learner_spoken_target_card_ids: list[str] = Field(default_factory=list)
     created_at: datetime = Field(default_factory=utc_now)
     updated_at: datetime = Field(default_factory=utc_now)
 

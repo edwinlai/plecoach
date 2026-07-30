@@ -11,6 +11,7 @@ from typing import Literal, Sequence
 
 from pydantic import BaseModel
 
+from .focus_words import find_spoken_target_card_ids
 from .mastery import (
     build_category_tree,
     summarize_mastery,
@@ -108,6 +109,9 @@ class Store(ABC):
     async def _save_plan(
         self, planning_state: PlanningState, session: SessionRecord
     ) -> None: ...
+
+    @abstractmethod
+    async def _delete_learner_data(self, learner_id: str) -> None: ...
 
     async def import_cards(
         self,
@@ -219,6 +223,12 @@ class Store(ABC):
         _validate_learner_id(learner_id)
         return await self._load_planning_state(learner_id)
 
+    async def delete_learner_data(self, learner_id: str) -> None:
+        """Delete persistent deck and planning data for one learner."""
+
+        _validate_learner_id(learner_id)
+        await self._delete_learner_data(learner_id)
+
     async def save_plan(
         self, planning_state: PlanningState, session: SessionRecord
     ) -> None:
@@ -257,10 +267,19 @@ class Store(ABC):
             text=text.strip(),
             created_at=created_at or utc_now(),
         )
+        spoken_target_ids = list(session.learner_spoken_target_card_ids)
+        if role == "student":
+            for card_id in find_spoken_target_card_ids(
+                turn.text,
+                session.target_cards,
+            ):
+                if card_id not in spoken_target_ids:
+                    spoken_target_ids.append(card_id)
         session = session.model_copy(
             update={
                 "state": SessionState.ACTIVE,
                 "transcript": [*session.transcript, turn][-200:],
+                "learner_spoken_target_card_ids": spoken_target_ids,
                 "updated_at": utc_now(),
             }
         )
@@ -420,6 +439,12 @@ class RedisStore(Store):
             )
             await transaction.execute()
 
+    async def _delete_learner_data(self, learner_id: str) -> None:
+        await self._redis.delete(
+            self._deck_key(learner_id),
+            self._planning_key(learner_id),
+        )
+
 
 class MemoryStore(Store):
     """Explicit test double; never selected by production configuration."""
@@ -473,3 +498,8 @@ class MemoryStore(Store):
                 planning_state
             )
             self._sessions[session.session_id] = _copy_model(session)
+
+    async def _delete_learner_data(self, learner_id: str) -> None:
+        async with self._lock:
+            self._decks.pop(learner_id, None)
+            self._planning_states.pop(learner_id, None)

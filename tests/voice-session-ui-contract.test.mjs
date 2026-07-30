@@ -41,3 +41,25 @@ test("streaming transcript keeps a stable pinyin line without smooth-scroll boun
   assert.doesNotMatch(transcriptListStyles, /scroll-behavior:\s*smooth/);
   assert.match(styles, /\.transcript-hanzi\s*\{/);
 });
+
+test("focus-word checks use monotonic learner-spoken session progress", async () => {
+  const source = await readFile(
+    new URL("../app/VoiceSession.tsx", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(source, /payload\.type === "learner_spoken_targets"/);
+  assert.match(source, /payload\.learner_spoken_target_card_ids/);
+  assert.match(
+    source,
+    /const active = learnerSpokenTargetIds\.has\(card\.card_id\)/,
+  );
+  assert.match(
+    source,
+    /cards\.filter\(\(card\) => learnerSpokenTargetIds\.has\(card\.card_id\)\)/,
+  );
+  assert.doesNotMatch(
+    source,
+    /const active =[\s\S]{0,220}card\.mastery_state === "practicing"/,
+  );
+});

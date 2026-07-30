@@ -64,19 +64,35 @@ The integrated architecture review exposed one avoidable coupling: `Store.create
 
 The refactor intentionally kept the HTTP contract and Redis key schema stable. `Store` remains responsible for data access and state mutations; `SessionPlanner` normalizes category selection, coordinates target rotation and language-profile rules, constructs the planned session, and asks the store to commit planning history plus the session together. A per-learner planner lock prevents same-process requests from racing, and `RedisStore` uses one transaction for the two keys. Planner behavior lives in `test_session_planner.py`, while the broader import → plan → assessment → re-import path remains an integration test.
 
-### 6. Verify in layers
+### 6. Close the anonymous-user data lifecycle
+
+A final data-lifecycle review caught a subtle flaw in the first reset design: rotating the browser's learner ID without deleting its Redis records would orphan two no-TTL keys on every reset. I changed the flow so the UI first calls an idempotent learner-deletion endpoint. `RedisStore` removes exactly that learner's deck and planning records with one multi-key `DEL`; only after a successful `204` does the browser store a fresh identity and clear the UI. A failed deletion keeps the original identity and deck visible.
+
+I intentionally did not scan Redis for session keys. Sessions already have a configurable rolling seven-day TTL, and introducing a global scan would make reset cost grow with the whole deployment. Tests cover exact key scope, repeated deletion, another learner remaining untouched, invalid IDs, retained bounded sessions, client request failure, and the ordering guarantee that identity rotation happens after cleanup. Directly abandoning a browser identity is not globally scavenged; a complete local wipe still uses the explicit Docker volume-removal path.
+
+This remains a take-home security boundary rather than a production account model. A scaled service would authenticate ownership and coordinate reset with concurrent imports, planning requests, and agent writes using transactional or distributed lifecycle controls.
+
+### 7. Make session progress deterministic and monotonic
+
+The focus-word checkmarks originally depended on the model choosing to issue a mastery assessment, while periodic polling could replace newer client state with an older response. I separated the two concepts: committed learner transcripts are now matched deterministically against simplified and traditional target forms, and those learner-spoken IDs are persisted as append-only session state in Redis. The client unions reliable LiveKit events with polled state, so stale responses can add known IDs but cannot remove a checkmark. Merely saying a word marks session coverage without falsely improving comprehension or usage mastery.
+
+Tests cover simplified/traditional forms, punctuation and spacing, learner-only matching, persistence across unrelated turns, the separation from mastery, stale polling, malformed updates, and realtime/poll deduplication.
+
+### 8. Verify in layers
 
 The intended verification order is:
 
 1. Parse the synthetic XML and assert its card count, category hierarchy, and varied optional score histories.
-2. Run backend tests for validation, deduplication, the planner/store boundary, category normalization, target rotation, language profiling, and mastery updates.
-3. Run frontend static checks and a production build.
+2. Run backend tests for validation, deduplication, the planner/store boundary, category normalization, target rotation, language profiling, mastery updates, and scoped learner deletion.
+3. Run frontend static checks and a production build, including reset ordering and failure behavior.
 4. Validate the resolved Compose configuration.
 5. Build and start the same Compose services described in the README.
-6. Exercise health endpoints and the sample-deck flow.
+6. Exercise health endpoints, the sample-deck flow, and a real Redis reset that verifies both persistent learner keys disappear.
 7. With LiveKit credentials present, complete one manual microphone session and confirm interruption, transcript delivery, and Redis-backed assessment updates.
 
 The final submission should report only checks that actually ran successfully; provider-backed voice verification is kept distinct from deterministic local tests.
+
+The latest complete run passed 78 backend tests and 43 frontend tests, passed ESLint, rebuilt all four Compose services, returned HTTP 200 from the web and health endpoints, registered the LiveKit worker, and verified the learner reset against the running Redis container.
 
 ## Review guardrails
 
@@ -86,8 +102,10 @@ The final submission should report only checks that actually ran successfully; p
 - Pleco review scores never directly become conversational mastery.
 - Previewing a lesson updates target-rotation history, not mastery evidence.
 - LLM assessments are stored with supporting context and can be revised by later evidence.
+- Reset deletes only the current learner's deck and planning keys, is safe to retry, and never rotates the browser identity after a failed cleanup.
+- Session records remain bounded by TTL rather than being found with an unbounded Redis key scan.
 - I inspect the final diff for generated files, hardcoded credentials, stale TODOs, and claims not supported by a test or manual check.
 
 ## What I would automate next
 
-With more time, I would add a recorded Mandarin audio fixture for repeatable end-to-end agent evaluation, a rubric-based regression set for comprehension/usage judgments, and CI that builds every image then runs the Compose smoke test on each pull request.
+With more time, I would add a recorded Mandarin audio fixture for repeatable end-to-end agent evaluation, a rubric-based regression set for comprehension/usage judgments, authenticated learner ownership, distributed lifecycle coordination for reset/import races, and CI that builds every image then runs the Compose smoke test on each pull request.
