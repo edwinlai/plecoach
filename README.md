@@ -267,14 +267,3 @@ See [workflow.md](workflow.md) for the AI-assisted development process and [PROM
 ## Video walkthrough
 
 [Watch the Plecoach video walkthrough](https://youtu.be/FqtPxbBolBI).
-
-The recording shows:
-
-- `docker compose up --build` reaching a usable web app
-- the one-click sample deck import
-- a nested category selection and its six planned target words
-- the browser joining a LiveKit room and the tutor speaking Mandarin
-- one interrupted turn, the live transcript, and an updated word state
-- the reset confirmation deleting the current learner and returning to an empty import screen
-
-The linked walkthrough is the final submission recording.
