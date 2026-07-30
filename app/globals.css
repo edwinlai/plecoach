@@ -15,6 +15,7 @@
   --coral-soft: #f8dfd9;
   --gold: #d7a63f;
   --shadow: 0 18px 55px rgba(38, 50, 46, 0.1);
+  --font-size-min: 13px;
   --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
     "Noto Sans CJK SC", "Microsoft YaHei", sans-serif;
   --font-mono: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
@@ -37,7 +38,12 @@ body {
     var(--paper);
   color: var(--ink);
   font-family: var(--font-sans);
+  font-size: var(--font-size-min);
   -webkit-font-smoothing: antialiased;
+}
+
+small {
+  font-size: inherit;
 }
 
 button,
@@ -108,7 +114,7 @@ input:focus-visible {
 .brand-word small {
   margin-top: 4px;
   color: var(--ink-soft);
-  font-size: 9px;
+  font-size: var(--font-size-min);
   font-weight: 620;
   letter-spacing: 0.1em;
   text-transform: uppercase;
@@ -117,7 +123,7 @@ input:focus-visible {
 .eyebrow {
   margin: 0 0 8px;
   color: var(--jade);
-  font-size: 11px;
+  font-size: var(--font-size-min);
   font-weight: 750;
   letter-spacing: 0.12em;
   text-transform: uppercase;
@@ -218,7 +224,7 @@ input:focus-visible {
   border-radius: 10px;
   background: rgba(248, 223, 217, 0.55);
   color: #a13b32;
-  font-size: 12px;
+  font-size: var(--font-size-min);
   line-height: 1.45;
 }
 
@@ -248,7 +254,7 @@ input:focus-visible {
   align-items: center;
   gap: 8px;
   color: var(--ink-soft);
-  font-size: 12px;
+  font-size: var(--font-size-min);
   font-weight: 620;
 }
 
@@ -297,7 +303,7 @@ input:focus-visible {
   align-items: center;
   gap: 7px;
   color: #45514d;
-  font-size: 12px;
+  font-size: var(--font-size-min);
   font-weight: 650;
 }
 
@@ -341,7 +347,7 @@ input:focus-visible {
   display: block;
   margin-bottom: 5px;
   color: var(--jade);
-  font-size: 10px;
+  font-size: var(--font-size-min);
   font-weight: 750;
   letter-spacing: 0.08em;
 }
@@ -415,7 +421,7 @@ input:focus-visible {
   padding-top: 18px;
   border-top: 1px solid #ebe6dd;
   color: #737c78;
-  font-size: 10px;
+  font-size: var(--font-size-min);
 }
 
 .privacy-note svg {
@@ -444,7 +450,7 @@ input:focus-visible {
 .landing-steps article > span {
   color: var(--coral);
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: var(--font-size-min);
   font-weight: 700;
 }
 
@@ -456,7 +462,7 @@ input:focus-visible {
 .landing-steps p {
   margin: 0;
   color: var(--ink-soft);
-  font-size: 11px;
+  font-size: var(--font-size-min);
   line-height: 1.5;
 }
 
@@ -491,7 +497,7 @@ input:focus-visible {
   border-radius: 999px;
   background: rgba(255, 253, 248, 0.65);
   color: var(--ink-soft);
-  font-size: 11px;
+  font-size: var(--font-size-min);
   font-weight: 650;
 }
 
@@ -556,7 +562,7 @@ input:focus-visible {
 .deck-meta-card div:nth-child(2) span {
   margin-top: 3px;
   color: var(--ink-soft);
-  font-size: 10px;
+  font-size: var(--font-size-min);
 }
 
 .deck-progress-ring {
@@ -584,7 +590,7 @@ input:focus-visible {
 .deck-progress-ring span {
   z-index: 1;
   grid-area: 1 / 1;
-  font-size: 9px;
+  font-size: var(--font-size-min);
   font-weight: 750;
 }
 
@@ -791,7 +797,7 @@ input:focus-visible {
   border-radius: 999px;
   background: var(--coral-soft);
   color: var(--coral-dark);
-  font-size: 10px;
+  font-size: var(--font-size-min);
   font-weight: 720;
 }
 
@@ -814,7 +820,7 @@ input:focus-visible {
 .mastery-grid article small {
   display: block;
   color: var(--ink-soft);
-  font-size: 9px;
+  font-size: var(--font-size-min);
   font-weight: 660;
   text-transform: uppercase;
 }
@@ -829,7 +835,7 @@ input:focus-visible {
 .mastery-grid article p {
   margin: 0;
   color: #79827e;
-  font-size: 9px;
+  font-size: var(--font-size-min);
   line-height: 1.45;
 }
 
@@ -880,13 +886,13 @@ input:focus-visible {
 }
 
 .selection-explainer strong {
-  font-size: 12px;
+  font-size: var(--font-size-min);
 }
 
 .selection-explainer p {
   margin: 4px 0 0;
   color: var(--ink-soft);
-  font-size: 10px;
+  font-size: var(--font-size-min);
   line-height: 1.5;
 }
 
@@ -902,13 +908,13 @@ input:focus-visible {
 }
 
 .section-heading > span {
-  font-size: 11px;
+  font-size: var(--font-size-min);
   font-weight: 720;
 }
 
 .section-heading small {
   color: var(--ink-soft);
-  font-size: 9px;
+  font-size: var(--font-size-min);
 }
 
 .word-chip-grid {
@@ -974,7 +980,7 @@ input:focus-visible {
 .word-chip.is-compact .word-pinyin,
 .word-chip.is-compact .word-meta-separator,
 .word-chip.is-compact .word-definition {
-  font-size: 12px;
+  font-size: var(--font-size-min);
 }
 
 .word-chip.is-compact .word-definition {
@@ -997,7 +1003,7 @@ input:focus-visible {
   gap: 6px;
   margin: 9px 0 0;
   color: var(--ink-soft);
-  font-size: 9px;
+  font-size: var(--font-size-min);
 }
 
 /* Plan dialog */
@@ -1044,7 +1050,7 @@ input:focus-visible {
   align-items: center;
   gap: 6px;
   color: var(--coral-dark);
-  font-size: 10px;
+  font-size: var(--font-size-min);
   font-weight: 750;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -1058,7 +1064,7 @@ input:focus-visible {
 
 .plan-dialog > .muted {
   margin: 0;
-  font-size: 12px;
+  font-size: var(--font-size-min);
   line-height: 1.55;
 }
 
@@ -1100,7 +1106,7 @@ input:focus-visible {
   background: rgba(23, 107, 91, 0.09);
   color: var(--jade);
   font-family: var(--font-mono);
-  font-size: 9px;
+  font-size: var(--font-size-min);
 }
 
 .topic-copy {
@@ -1118,7 +1124,7 @@ input:focus-visible {
 
 .topic-translation {
   color: var(--ink-soft);
-  font-size: 10px;
+  font-size: var(--font-size-min);
   font-weight: 480;
   line-height: 1.35;
   overflow-wrap: anywhere;
@@ -1146,7 +1152,7 @@ input:focus-visible {
 .microcopy {
   margin: 9px 0 0;
   color: var(--ink-soft);
-  font-size: 9px;
+  font-size: var(--font-size-min);
   text-align: center;
 }
 
@@ -1199,7 +1205,7 @@ input:focus-visible {
 .voice-brand small {
   margin-top: 2px;
   color: var(--ink-soft);
-  font-size: 8px;
+  font-size: var(--font-size-min);
   font-weight: 560;
 }
 
@@ -1220,7 +1226,7 @@ input:focus-visible {
   border-radius: 999px;
   background: rgba(255, 253, 248, 0.7);
   color: var(--ink-soft);
-  font-size: 11px;
+  font-size: var(--font-size-min);
 }
 
 .voice-topic span {
@@ -1240,7 +1246,7 @@ input:focus-visible {
   border-radius: 10px;
   background: var(--white);
   color: var(--ink-soft);
-  font-size: 11px;
+  font-size: var(--font-size-min);
   font-weight: 650;
   cursor: pointer;
 }
@@ -1280,7 +1286,7 @@ input:focus-visible {
 .session-panel-heading > span {
   color: var(--jade);
   font-family: var(--font-mono);
-  font-size: 12px;
+  font-size: var(--font-size-min);
   font-weight: 700;
 }
 
@@ -1390,7 +1396,7 @@ input:focus-visible {
 .evidence-label {
   white-space: nowrap;
   color: #848b88;
-  font-size: 12px;
+  font-size: var(--font-size-min);
   line-height: 1.2;
 }
 
@@ -1427,7 +1433,7 @@ input:focus-visible {
 .session-tip p,
 .assessment-note p {
   margin: 0;
-  font-size: 11px;
+  font-size: var(--font-size-min);
   line-height: 1.55;
 }
 
@@ -1463,7 +1469,7 @@ input:focus-visible {
 .voice-status small {
   margin-top: 1px;
   color: var(--ink-soft);
-  font-size: 10px;
+  font-size: var(--font-size-min);
   line-height: 1.25;
 }
 
@@ -1499,7 +1505,7 @@ input:focus-visible {
 .joining-note {
   margin: 0;
   color: var(--ink-soft);
-  font-size: 11px;
+  font-size: var(--font-size-min);
   line-height: 1.4;
 }
 
@@ -1539,7 +1545,7 @@ input:focus-visible {
   gap: 6px;
   margin: 0;
   color: var(--ink-soft);
-  font-size: 11px;
+  font-size: var(--font-size-min);
   line-height: 1.4;
 }
 
@@ -1556,7 +1562,7 @@ input:focus-visible {
   border-radius: 999px;
   color: var(--ink-soft) !important;
   font-family: inherit !important;
-  font-size: 10px !important;
+  font-size: var(--font-size-min) !important;
   line-height: 1;
 }
 
@@ -1663,7 +1669,7 @@ input:focus-visible {
   color: #9f3931;
   box-shadow: var(--shadow);
   transform: translateX(-50%);
-  font-size: 11px;
+  font-size: var(--font-size-min);
 }
 
 .room-error > span:nth-child(2) {
@@ -1721,7 +1727,7 @@ input:focus-visible {
 .loading-screen > p {
   margin: -10px 0 0;
   color: var(--ink-soft);
-  font-size: 12px;
+  font-size: var(--font-size-min);
 }
 
 @media (max-width: 1050px) {
@@ -1841,7 +1847,7 @@ input:focus-visible {
   }
 
   .transcript-list small {
-    font-size: 12px;
+    font-size: var(--font-size-min);
   }
 
   .transcript-hanzi {
@@ -1911,7 +1917,7 @@ input:focus-visible {
   }
 
   .topic-translation {
-    font-size: 9px;
+    font-size: var(--font-size-min);
   }
 
   .session-word-list {
@@ -1995,7 +2001,7 @@ input:focus-visible {
 
   .mic-note,
   .joining-note {
-    font-size: 10px;
+    font-size: var(--font-size-min);
   }
 }
 
